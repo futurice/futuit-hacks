@@ -1,4 +1,5 @@
 *.log
+*.log.*
 *.pyc
 # Local_settings doesn't contain secrets at this time
 #local_settings.py

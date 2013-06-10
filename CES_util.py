@@ -3,6 +3,7 @@
 import datetime    
 import sys
 import logging
+import logging.handlers
 import pprint
 
 from local_settings import *
@@ -20,7 +21,9 @@ def init_logging():
 
     logger.setLevel(logging.DEBUG)
     handler = logging.StreamHandler(sys.stdout)
-    filehandler = logging.FileHandler(CES_SETTINGS['logFile'])
+    filehandler = logging.handlers.RotatingFileHandler(filename=CES_SETTINGS['logFile'], 
+        maxBytes=(5 * 1024 * 1024), backupCount=10)
+
     filehandler.setLevel(logging.DEBUG)
 
     if DEBUG:
