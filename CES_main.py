@@ -35,7 +35,7 @@ def main(argv):
    logging.debug("Master events:\n%s" % pp.pformat(master_events))
 
    logging.info("Creating CES events ...")
-   ces_events = [CES_calendar.cesEvent(mevent) for mevent in master_events]
+   ces_events = [CES_calendar.cesEvent(mevent) for mevent in master_events if not "recurringEventId" in mevent]
 
    logging.info("Applying CES events to calendars ...")
    for ces_event in ces_events:
