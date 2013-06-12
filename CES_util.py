@@ -19,17 +19,12 @@ def init_logging():
     """ Initialize logging """
     logger = logging.getLogger("")
 
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(logging.INFO)
     handler = logging.StreamHandler(sys.stdout)
     filehandler = logging.handlers.RotatingFileHandler(filename=CES_SETTINGS['logFile'], 
         maxBytes=(5 * 1024 * 1024), backupCount=10)
 
-    filehandler.setLevel(logging.DEBUG)
-
-    if DEBUG:
-        handler.setLevel(logging.DEBUG)
-    else:
-        handler.setLevel(logging.INFO)
+    filehandler.setLevel(logging.INFO)
 
     logger.addHandler(handler)
     logger.addHandler(filehandler)
@@ -37,6 +32,15 @@ def init_logging():
     formatter = logging.Formatter(_LOG_FORMATTER_STRING)
     handler.setFormatter(formatter)
     filehandler.setFormatter(formatter)
+
+    if DEBUG:
+        handler.setLevel(logging.DEBUG)
+        debugfilehandler = logging.handlers.RotatingFileHandler(filename=CES_SETTINGS['logFile'] + ".debug", 
+                               maxBytes=(5 * 1024 * 1024), backupCount=10)
+        debugfilehandler.setLevel(logging.DEBUG)
+        logger.addHandler(debugfilehandler)
+        debugfilehandler.setFormatter(formatter)
+
     logger.debug("Logging started.")
 
 def datetime_to_tz_isostring(utc_dt, timezone_str = CES_SETTINGS['timeZoneLocal'], timedelta = datetime.timedelta(days = 0)):
