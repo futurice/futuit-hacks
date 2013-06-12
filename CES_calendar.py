@@ -6,8 +6,9 @@ import CES_db
 import CES_group
 
 from apiclient.errors import HttpError
-from local_settings import *
+from CES_main import OPTIONS
 from CES_util import *
+from local_settings import *
 
 class cesEvent:
     def __init__(self, google_event):
@@ -76,24 +77,27 @@ class cesEvent:
 
         insert_request = calendar_service.events().insert(calendarId=calendar_id, body=self.content)
         created_id = None
-
-        logging.debug("Adding event '%s' to calendar '%s'" % (self.master_id, calendar_id))
-        try:
-            result = insert_request.execute()
-            logging.debug("Event insert result: %s" % result)
-            created_id = result['id']
-            logging.debug("Added master event '%s' to calendar '%s' as created event '%s'" % (self.master_id, calendar_id, created_id))
-        except HttpError, e:
-            logging.critical(("Calendar insert call failed for event id '%s', "
-                "calendar '%s', request '%s'. Error: %s") % (self.master_id, calendar_id, insert_request, e))
-            return False
-        except:
-            logging.critical(("Unexpected error, calendar insert call failed for event id '%s', "
-                "calendar '%s', request '%s'. Error: %s") % (self.master_id, calendar_id, insert_request, sys.exc_info()[0]))
-            return False
+        
+        if CES_main.SETTINGS.simulate_only:
+            logging.info("Simulate switch enabled. Not adding event '%s' to calendar '%s'" % (self.master_id, calendar_id))
         else:
-            CES_db.add_event_to_db(calendar_id, self.master_id, created_id)
-            return True
+            logging.info("Adding event '%s' to calendar '%s'" % (self.master_id, calendar_id))
+            try:
+                result = insert_request.execute()
+                logging.debug("Event insert result: %s" % result)
+                created_id = result['id']
+                logging.debug("Added master event '%s' to calendar '%s' as created event '%s'" % (self.master_id, calendar_id, created_id))
+            except HttpError, e:
+                logging.critical(("Calendar insert call failed for event id '%s', "
+                    "calendar '%s', request '%s'. Error: %s") % (self.master_id, calendar_id, insert_request, e))
+                return False
+            except:
+                logging.critical(("Unexpected error, calendar insert call failed for event id '%s', "
+                    "calendar '%s', request '%s'. Error: %s") % (self.master_id, calendar_id, insert_request, sys.exc_info()[0]))
+                return False
+            else:
+                CES_db.add_event_to_db(calendar_id, self.master_id, created_id)
+                return True
             
     
     def _parse_description_tag(self, control_tag):
