@@ -18,7 +18,7 @@ def get_groups(service, pageToken = None):
        return result;
 
     for group in groups['groups']:
-        logging.debug("Group: %s" % pp.pformat(group))
+        #logging.debug("Group: %s" % pp.pformat(group))
         if group['name']:
             result.append(group['email'])
 
@@ -36,7 +36,7 @@ def get_group_members(service, group_email, pageToken = None):
     logging.debug("Entered get_group_members, group_email: %s, token: %s" % (group_email, pageToken))
     result = []
 
-    if not group_email:
+    if not group_email or not group_email in ALL_GROUPS:
         return result;
     
     members = service.members().list(groupKey = group_email, pageToken = pageToken).execute()
