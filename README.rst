@@ -19,7 +19,7 @@ Configuration and installation
 ==============================
 
 Python 2.6 to 2.7.x is recommended. 
-Requires: google-api-python-client
+Requires: google-api-python-client, python-dateutil
 
 To initialize OAuth2 tokens run: CES_googleservices.py
 It should provide further instructions.

@@ -12,7 +12,7 @@ CES_SETTINGS = {
     "forceTransparency" : True,
     
     # Allowed groups (to allow any, set it to: None)
-    "allowedGroups" : ["mktestgroup"],
+    "allowedGroups" : None,
     
     # Domain
     "domain" : "futurice.com",
@@ -20,15 +20,14 @@ CES_SETTINGS = {
     # Time deltas for master calendar reading (days). This will define how far in the past
     # and how far in the future we will read data from the master calendar from.
     "startRangeDays" : -14,
-    "endRangeDays" : 14,
-    #"endRangeDays" : 180,
+    "endRangeDays" : 180,
 
     # Local timezone
     "timeZoneLocal" : "Europe/Helsinki",
     # SQLite db file
     "sqliteDb" : "CES.db",
     # Log file
-    "logFile" : "CES.log",   
+    "logFile" : "log/CES.log",
     # Identity storage file
     "oauthStorage" : "CES.dat"
 }
