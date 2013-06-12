@@ -6,8 +6,8 @@ import CES_db
 import CES_group
 
 from apiclient.errors import HttpError
-from CES_main import OPTIONS
 from CES_util import *
+from CES_main import CMD_OPTIONS
 from local_settings import *
 
 class cesEvent:
@@ -78,7 +78,9 @@ class cesEvent:
         insert_request = calendar_service.events().insert(calendarId=calendar_id, body=self.content)
         created_id = None
         
-        if CES_main.SETTINGS.simulate_only:
+        pp.pprint(CMD_OPTIONS)
+        
+        if CMD_OPTIONS.simulate_only:
             logging.info("Simulate switch enabled. Not adding event '%s' to calendar '%s'" % (self.master_id, calendar_id))
         else:
             logging.info("Adding event '%s' to calendar '%s'" % (self.master_id, calendar_id))
@@ -119,6 +121,9 @@ class cesEvent:
         # Explode the comma separated string and strip whitespace
         result = [stripped.strip() for stripped in value_row[len(control_tag):].split(",")]
         logging.debug("Parsed values '%s' for tag '%s' from description '%s'." % (result, control_tag, desc))
+        
+        # Strip empty elements
+        result = [item for item in result if item not in (None, '')]
         
         # If allowed groups is defined in settings, reduce to those
         if control_tag == "#groups:":
