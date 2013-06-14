@@ -5,8 +5,9 @@
 
 CES_SETTINGS = {
     # Master calendar id (You can find the id from Google Calendar settings for the calendar"
-    "masterCalendarId" : "futurice.com_5oq1nn5ve93bvpbefu2cucarns@group.calendar.google.com",
-    #"masterCalendarId" : "markus.koskinen@futurice.com",
+    "masterCalendarId" : "futuevents@futurice.com",
+    # Markus' test calendar
+    #"masterCalendarId" : "futurice.com_5oq1nn5ve93bvpbefu2cucarns@group.calendar.google.com",
 
     # Force created events to be transparent (user shown as "available")
     "forceTransparency" : True,
