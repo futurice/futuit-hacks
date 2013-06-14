@@ -32,8 +32,6 @@ parser.add_option("-s", "--simulate",
     
 CMD_OPTIONS, _ = parser.parse_args()
 
-import testing
-
 def main(argv):
     init_logging()
 
