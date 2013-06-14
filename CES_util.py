@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import datetime    
+import os
 import sys
 import logging
 import logging.handlers
@@ -18,6 +19,12 @@ pp = pprint.PrettyPrinter(indent=4)
 def init_logging():
     """ Initialize logging """
     logger = logging.getLogger("")
+
+    # Make sure the logging path exists, create if not
+    logdir = os.path.dirname(CES_SETTINGS['logFile'])
+    if logdir and not os.path.exists(logdir):
+        print "Logging directory '%s' doesn't exist, creating." % logdir
+        os.makedirs(logdir)
 
     logger.setLevel(logging.INFO)
     handler = logging.StreamHandler(sys.stdout)
