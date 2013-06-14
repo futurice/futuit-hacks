@@ -10,7 +10,7 @@ import pprint
 from local_settings import *
 from dateutil import tz
 
-DEBUG = False
+DEBUG = True
 
 _LOG_FORMATTER_STRING = "%(asctime)s %(module)s [%(levelname)s] %(message)s"
 
@@ -26,27 +26,27 @@ def init_logging():
         print "Logging directory '%s' doesn't exist, creating." % logdir
         os.makedirs(logdir)
 
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     handler = logging.StreamHandler(sys.stdout)
     filehandler = logging.handlers.RotatingFileHandler(filename=CES_SETTINGS['logFile'], 
         maxBytes=(5 * 1024 * 1024), backupCount=10)
 
+    handler.setLevel(logging.INFO)
     filehandler.setLevel(logging.INFO)
-
-    logger.addHandler(handler)
-    logger.addHandler(filehandler)
 
     formatter = logging.Formatter(_LOG_FORMATTER_STRING)
     handler.setFormatter(formatter)
     filehandler.setFormatter(formatter)
 
     if DEBUG:
-        handler.setLevel(logging.DEBUG)
         debugfilehandler = logging.handlers.RotatingFileHandler(filename=CES_SETTINGS['logFile'] + ".debug", 
                                maxBytes=(5 * 1024 * 1024), backupCount=10)
         debugfilehandler.setLevel(logging.DEBUG)
-        logger.addHandler(debugfilehandler)
         debugfilehandler.setFormatter(formatter)
+        logger.addHandler(debugfilehandler)
+
+    logger.addHandler(handler)
+    logger.addHandler(filehandler)
 
     logger.debug("Logging started.")
 
