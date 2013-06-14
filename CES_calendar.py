@@ -89,7 +89,7 @@ class cesEvent:
                 logging.debug("Added master event '%s' to calendar '%s' as created event '%s'" % (self.master_id, calendar_id, created_id))
             except HttpError, e:
                 logging.critical(("Calendar insert call failed for event id '%s', "
-                    "calendar '%s', request '%s'. Error: %s") % (self.master_id, calendar_id, self.content['title'], insert_request, e))
+                    "calendar '%s', request '%s'. Error: %s") % (self.master_id, calendar_id, self.content['summary'], insert_request, e))
                 return False
             except:
                 logging.critical(("Unexpected error, calendar insert call failed for event id '%s', "
