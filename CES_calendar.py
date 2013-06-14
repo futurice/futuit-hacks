@@ -46,7 +46,7 @@ class cesEvent:
         Apply the cesEvent to the calendars of all members of
         groups defined in self.groups
         """
-        logging.info("Applying master event '%s' to groups '%s'." % (self.master_id, self.target_groups_full))
+        logging.info("Applying master event '%s' (%s) to groups '%s'." % (self.master_id, self.content['summary'], self.target_groups_full))
         
         if not self.target_groups or self.target_groups == []:
             logging.warning("No groups for master event id '%s', skipping." % self.master_id)
@@ -69,7 +69,7 @@ class cesEvent:
         
     def _apply_to_calendar(self, calendar_service, calendar_id):
         """ Add the event to a calendar. Return "added" boolean. """
-        logging.debug("Will try and apply event '%s' to calendar '%s'." % (self.master_id, calendar_id))
+        logging.debug("Will try and apply event '%s' (%s) to calendar '%s'." % (self.master_id, self.content['summary'], calendar_id))
 
         if CES_db.event_already_added_to_calendar(calendar_id, self.master_id):
             logging.info("Not adding event '%s' to calendar '%s'. (Already added)" % (self.master_id, calendar_id))
@@ -78,12 +78,10 @@ class cesEvent:
         insert_request = calendar_service.events().insert(calendarId=calendar_id, body=self.content)
         created_id = None
         
-        pp.pprint(CMD_OPTIONS)
-        
         if CMD_OPTIONS.simulate_only:
             logging.info("Simulate switch enabled. Not adding event '%s' to calendar '%s'" % (self.master_id, calendar_id))
         else:
-            logging.info("Adding event '%s' to calendar '%s'" % (self.master_id, calendar_id))
+            logging.info("Adding event '%s' (%s) to calendar '%s'" % (self.master_id, self.content['summary'], calendar_id))
             try:
                 result = insert_request.execute()
                 logging.debug("Event insert result: %s" % result)
@@ -91,7 +89,7 @@ class cesEvent:
                 logging.debug("Added master event '%s' to calendar '%s' as created event '%s'" % (self.master_id, calendar_id, created_id))
             except HttpError, e:
                 logging.critical(("Calendar insert call failed for event id '%s', "
-                    "calendar '%s', request '%s'. Error: %s") % (self.master_id, calendar_id, insert_request, e))
+                    "calendar '%s', request '%s'. Error: %s") % (self.master_id, calendar_id, self.content['title'], insert_request, e))
                 return False
             except:
                 logging.critical(("Unexpected error, calendar insert call failed for event id '%s', "
@@ -130,6 +128,10 @@ class cesEvent:
             if CES_SETTINGS['allowedGroups']:
                 result = list(set(CES_SETTINGS['allowedGroups']) & set(result))
                 logging.debug("allowedGroups defined in settings, groups reduced to: %s" % result)
+            # Remove duplicate groups and non-existsting groups
+            logging.debug("Result pre-crop: %s" % result)
+            logging.debug("All groups: %s" % CES_group.ALL_GROUPS_SHORT)
+            result = list(set(result) & set(CES_group.ALL_GROUPS_SHORT))
         
         return result
 

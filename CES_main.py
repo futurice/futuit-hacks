@@ -44,7 +44,8 @@ def main(argv):
     calendar_service, directory_service = CES_googleservice.init_googleservices()
 
     logging.info("Populating list of all groups ...")
-    CES_group.ALL_GROUPS = CES_group.get_groups(directory_service)
+    CES_group.init_groups(directory_service)
+
     logging.info("Done. Sizeof all groups: %s" % len(CES_group.ALL_GROUPS))
     logging.debug("All groups: %s" % CES_group.ALL_GROUPS)
 
@@ -63,7 +64,6 @@ def main(argv):
         ces_event.apply_to_calendars(calendar_service, directory_service)
 
     logging.info("All done.")
-
 
 if __name__ == '__main__':
   main(sys.argv)

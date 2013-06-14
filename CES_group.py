@@ -6,8 +6,6 @@ from CES_util import *
 # Contains combinations of groups members
 AGGREGATE_GROUP_CACHE = {}
 
-ALL_GROUPS = []
-
 def get_groups(service, pageToken = None):
     """ Returns a list of all the groups in the domain. (Emails of the groups) """
     logging.debug("Entered get_groups, token: %s" % pageToken)
@@ -30,6 +28,13 @@ def get_groups(service, pageToken = None):
        return result
     else:
        return result
+
+def init_groups(directory_service):
+    global ALL_GROUPS
+    global ALL_GROUPS_SHORT
+    ALL_GROUPS = get_groups(directory_service)
+    domain_suff = "@" + CES_SETTINGS['domain']
+    ALL_GROUPS_SHORT = [group.replace(domain_suff, "") for group in ALL_GROUPS if group.endswith(domain_suff)]
 
 def get_group_members(service, group_email, pageToken = None):
     """ Return a list of emails of the members of group <group_email>  """
