@@ -56,7 +56,14 @@ def main(argv):
     logging.debug("Master events:\n%s" % pp.pformat(master_events))
 
     logging.info("Creating CES events ...")
-    ces_events = [CES_calendar.cesEvent(mevent) for mevent in master_events if not "recurringEventId" in mevent]
+    tmplist = master_events
+    mevent_list = [mevent for mevent in tmplist if not "recurringEventId" in mevent]
+    logging.info("* Cropped %d recurring events from list." % (len(tmplist) - len(mevent_list)))
+    tmplist = mevent_list
+    mevent_list = [mevent for mevent in mevent_list if "description" in mevent]
+    logging.info("* Cropped %d descriptionless events from list." % (len(tmplist) - len(mevent_list)))
+
+    ces_events = [CES_calendar.cesEvent(mevent) for mevent in mevent_list]
     logging.info("Done. Sizeof CES events: %d" % len(ces_events))
 
     logging.info("Applying CES events to calendars ...")
