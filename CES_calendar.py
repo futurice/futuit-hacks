@@ -113,7 +113,8 @@ class cesEvent:
            # Explode string by linebreaks, filter out rows that don't start with our tag
            value_row = [row for row in desc.split("\n") if row.startswith(control_tag)][0]
         except IndexError:
-            logging.warning("No values could be parsed with tag '%s' from description: %s" % (control_tag, desc))
+            logging.warning("No values could be parsed with tag '%s' from event: %s" % (control_tag, self.content['summary']))
+            logging.debug("No values could be parsed with tag '%s' from description: %s" % (control_tag, desc))
             return []
         
         # Explode the comma separated string and strip whitespace
