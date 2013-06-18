@@ -57,7 +57,6 @@ and save it at:
 FLOW = flow_from_clientsecrets(CLIENT_SECRETS,
     scope=[
       'https://www.googleapis.com/auth/calendar',
-      #'https://www.googleapis.com/auth/admin.directory.group.readonly',
       'https://www.googleapis.com/auth/directory.group.readonly',
     ],
     message=MISSING_CLIENT_SECRETS_MESSAGE)

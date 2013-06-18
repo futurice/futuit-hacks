@@ -3,9 +3,13 @@
 *.pyc
 # Local_settings doesn't contain secrets at this time
 #local_settings.py
+# Private settings contain secrets now
+private_settings.py
 *~
 *.pid
 *.dat
+bk.*
 CES.db
 client_secrets.json
 DEADJOE
+*.p12

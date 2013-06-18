@@ -5,9 +5,9 @@
 
 CES_SETTINGS = {
     # Master calendar id (You can find the id from Google Calendar settings for the calendar"
-    "masterCalendarId" : "futuevents@futurice.com",
+    #"masterCalendarId" : "futuevents@futurice.com",
     # Markus' test calendar
-    #"masterCalendarId" : "futurice.com_5oq1nn5ve93bvpbefu2cucarns@group.calendar.google.com",
+    "masterCalendarId" : "futurice.com_5oq1nn5ve93bvpbefu2cucarns@group.calendar.google.com",
 
     # Force created events to be transparent (user shown as "available")
     "forceTransparency" : True,
@@ -30,6 +30,15 @@ CES_SETTINGS = {
     # Log file
     "logFile" : "log/CES.log",
     # Identity storage file
-    "oauthStorage" : "CES.dat"
+    "oauthStorage" : "CES.dat",
+
+    # Default reminder notification (no notifications)
+    "default_reminders" : { "useDefault" : False }
 }
 
+CES_PRIVATE_SETTINGS = {
+  "SERVICE_ACCOUNT_EMAIL" : "DEFINE-IN-PRIVATE-SETTINGS@developer.gserviceaccount.com",
+  "SERVICE_ACCOUNT_PKCS12_FILE_PATH" : "DEFINE-IN-PRIVATE-SETTINGS-privatekey.p12",
+}
+
+from private_settings import *
