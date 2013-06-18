@@ -21,8 +21,15 @@ Configuration and installation
 Python 2.6 to 2.7.x is recommended. 
 Requires: google-api-python-client, python-dateutil
 
-To initialize OAuth2 tokens run: CES_googleservices.py
-It should provide further instructions.
+To get OAuth2 to work:
+1. Create a new Google Service Account
+   (https://code.google.com/apis/console/) 
+2. Gather the private key and store it with the script
+   (point private settings at it)
+3. Check the rest of the private settings
+4. Give the app read rights to admin directory
+   and writes to calendar in Google Admin Control
+   Panel based on the client id - https://admin.google.com 
 
 
 License
@@ -30,7 +37,8 @@ License
 
 The script is distributed under the Apache License 2.0.
 It is (c) 2013 Futurice Oy. 
-Portions (c) Google Inc (CES_googleservices.py)
+Portions (c) Google Inc (CES_googleservices.py,
+CES_serviceaccount_googleservices.py)
 
 Control tags
 ============
