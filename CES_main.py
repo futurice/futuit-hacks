@@ -15,7 +15,7 @@ import sys
 
 import CES_db
 import CES_calendar
-import CES_googleservice
+import CES_serviceaccount_googleservice
 import CES_group
 
 from CES_util import *
@@ -39,7 +39,9 @@ def main(argv):
         logging.info("Simulate switch is enabled. Will not do writes.")
 
     CES_db.init_db()
-    calendar_service, directory_service = CES_googleservice.init_googleservices()
+    logging.info("Creating admin google services ...")
+    calendar_service = CES_serviceaccount_googleservice.createCalendarService() 
+    directory_service = CES_serviceaccount_googleservice.createDirectoryService()
 
     logging.info("Populating list of all groups ...")
     CES_group.init_groups(directory_service)

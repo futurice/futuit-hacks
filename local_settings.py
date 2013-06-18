@@ -36,9 +36,11 @@ CES_SETTINGS = {
     "default_reminders" : { "useDefault" : False }
 }
 
+# Override these with a similar dict in private_settings
 CES_PRIVATE_SETTINGS = {
   "SERVICE_ACCOUNT_EMAIL" : "DEFINE-IN-PRIVATE-SETTINGS@developer.gserviceaccount.com",
   "SERVICE_ACCOUNT_PKCS12_FILE_PATH" : "DEFINE-IN-PRIVATE-SETTINGS-privatekey.p12",
+  "ADMIN_ACCOUNT_EMAIL" : "admin@domain.com",
 }
 
 from private_settings import *

@@ -4,6 +4,7 @@ import datetime
 
 import CES_db
 import CES_group
+import CES_serviceaccount_googleservice
 
 from apiclient.errors import HttpError
 from CES_util import *
@@ -80,7 +81,11 @@ class cesEvent:
             logging.info("Not adding event '%s' to calendar '%s'. (Already added)" % (self.master_id, calendar_id))
             return False
 
-        insert_request = calendar_service.events().insert(calendarId=calendar_id, body=self.content)
+        #insert_request = calendar_service.events().insert(calendarId=calendar_id, body=self.content)
+        # We assume the role of the target calendar id user here
+        target_calendar_service = CES_serviceaccount_googleservice.createCalendarService(calendar_id)
+        insert_request = target_calendar_service.events().insert(calendarId=calendar_id, body=self.content)
+        
         created_id = None
         
         if CMD_OPTIONS.simulate_only:
