@@ -19,6 +19,11 @@ class cesEvent:
         # Would make sense to only use these to avoid confusion.
         self.target_groups_full = ["%s@%s" % (grp.lower(), CES_SETTINGS['domain']) for grp in self.target_groups]
 
+        if 'useDefault' in self.content['reminders'] and self.content['reminders']['useDefault'] == True:
+            logging.debug(("Source event has default settings (%s), overriding "
+                "with no notification values (%s).") % (self.content['reminders'], CES_SETTINGS['default_reminders']))
+            self.content['reminders'] = CES_SETTINGS['default_reminders']
+
         self.master_id = self.content['id']
         self.content['extendedProperties'] = { "private" : 
                 {
@@ -89,7 +94,7 @@ class cesEvent:
                 logging.debug("Added master event '%s' to calendar '%s' as created event '%s'" % (self.master_id, calendar_id, created_id))
             except HttpError, e:
                 logging.critical(("Calendar insert call failed for event id '%s', "
-                    "calendar '%s', request '%s'. Error: %s") % (self.master_id, calendar_id, self.content['summary'], insert_request, e))
+                    "calendar '%s', summary: %s, request '%s'. Error: %s") % (self.master_id, calendar_id, self.content['summary'], insert_request, e))
                 return False
             except:
                 logging.critical(("Unexpected error, calendar insert call failed for event id '%s', "
