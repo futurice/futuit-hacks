@@ -56,7 +56,6 @@ and save it at:
 # <https://developers.google.com/+/best-practices>.
 FLOW = flow_from_clientsecrets(CLIENT_SECRETS,
     scope=[
-      #'https://www.googleapis.com/auth/calendar.readonly',
       'https://www.googleapis.com/auth/calendar',
       #'https://www.googleapis.com/auth/admin.directory.group.readonly',
       'https://www.googleapis.com/auth/directory.group.readonly',
@@ -89,7 +88,6 @@ def init_googleservices():
 
   calendar_service = build('calendar', 'v3', http=http)
   admin_service = build('admin', 'directory_v1', http=http)
-  #admin_service = build('admin.directory.group.readonly', 'v1', http=http)
 
   try:
 
