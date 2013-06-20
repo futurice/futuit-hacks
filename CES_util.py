@@ -23,8 +23,14 @@ def init_logging():
     # Make sure the logging path exists, create if not
     logdir = os.path.dirname(CES_SETTINGS['logFile'])
     if logdir and not os.path.exists(logdir):
-        print "Logging directory '%s' doesn't exist, creating." % logdir
+        print "Logging directory '%s' doesn't exist, creating it now." % logdir
         os.makedirs(logdir)
+
+    # Heck, let's create the oauth storage here as well
+    oauthdir = os.path.dirname(CES_SETTINGS['oauthStorage'])
+    if oauthdir and not os.path.exists(oauthdir):
+        print "Oauth2 token storage directory '%s' doesn't exist, creating it now." % oauthdir
+        os.makedirs(oauthdir)
 
     logger.setLevel(logging.DEBUG)
     handler = logging.StreamHandler(sys.stdout)
