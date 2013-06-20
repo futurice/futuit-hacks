@@ -7,6 +7,7 @@
 import httplib2
 import sys
 
+from oauth2client.file import Storage
 from apiclient.discovery import build
 from oauth2client.client import SignedJwtAssertionCredentials
 
@@ -34,30 +35,37 @@ def createCalendarService(user_email=CES_PRIVATE_SETTINGS['ADMIN_ACCOUNT_EMAIL']
          user_email=user_email)
 
 def createService(scope, build_type, build_version, user_email):
-  """Build and returns a Drive service object authorized with the service accounts
-  that act on behalf of the given user.
+    """Build and returns a Drive service object authorized with the service accounts
+    that act on behalf of the given user.
 
-  Args:
-    user_email: The email of the user.
-  Returns:
-    Calendar service object.
-  """
-  try:
-      f = file(SERVICE_ACCOUNT_PKCS12_FILE_PATH, 'rb')
-      key = f.read()
-      f.close()
-  except IOError:
-      logging.fatal("Failed to open PKCS12 keyfile.")
-      sys.exit(1)
-  except:
-      logging.fatal("Unspecified error opening PKCS12 keyfile.")
-      sys.exit(1)
-      
+    Args:
+      user_email: The email of the user.
+    Returns:
+      Calendar service object.
+    """
+    try:
+        f = file(SERVICE_ACCOUNT_PKCS12_FILE_PATH, 'rb')
+        key = f.read()
+        f.close()
+    except IOError:
+        logging.fatal("Failed to open PKCS12 keyfile.")
+        sys.exit(1)
+    except:
+        logging.fatal("Unspecified error opening PKCS12 keyfile.")
+        sys.exit(1)
 
-  credentials = SignedJwtAssertionCredentials(SERVICE_ACCOUNT_EMAIL, key,
-      scope=scope, prn=user_email)
+    # Handle oauth storage tokens.
+    # NOTICE: There might be a much better way to do this.
+    storage = Storage(CES_SETTINGS['oauthStorage'] + "_" + build_type + "_" + user_email)
+    credentials = storage.get()
 
-  http = httplib2.Http()
-  http = credentials.authorize(http)
+    if credentials is None or credentials.invalid:
+        # WARNING: prn will apparently change to sub
+        credentials = SignedJwtAssertionCredentials(SERVICE_ACCOUNT_EMAIL, key,
+            scope=scope, prn=user_email)
+        storage.put(credentials)
 
-  return build(build_type, build_version, http=http)
+    http = httplib2.Http()
+    http = credentials.authorize(http)
+
+    return build(build_type, build_version, http=http)
