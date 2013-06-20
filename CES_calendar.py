@@ -20,10 +20,7 @@ class cesEvent:
         # Would make sense to only use these to avoid confusion.
         self.target_groups_full = ["%s@%s" % (grp.lower(), CES_SETTINGS['domain']) for grp in self.target_groups]
 
-        if 'useDefault' in self.content['reminders'] and self.content['reminders']['useDefault'] == True:
-            logging.debug(("Source event has default settings (%s), overriding "
-                "with no notification values (%s).") % (self.content['reminders'], CES_SETTINGS['default_reminders']))
-            self.content['reminders'] = CES_SETTINGS['default_reminders']
+        self.content['reminders'] = CES_SETTINGS['default_reminders']
 
         self.master_id = self.content['id']
         self.content['extendedProperties'] = { "private" : 
