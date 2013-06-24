@@ -24,6 +24,7 @@ class cesEvent:
         self.reminder = self._parse_description_tag("#reminder:")
         logging.debug("Parsed reminder tag is: %s" % self.reminder)
 
+        # Reminders
         if self.reminder and len(self.reminder) == 1 and self.reminder[0].lower() in "true":
             logging.info("Reminders enabled for '%s'" % self.content['summary'])
             self.content['reminders'] = CES_SETTINGS['default_reminders']
@@ -46,8 +47,17 @@ class cesEvent:
         self.content.pop("iCalUID", None)
         self.content.pop("etag", None)
         
+        # Transparency handling (show user as busy/non-busy)
+        self.showbusy = self._parse_description_tag("#showbusy:")
+
         if CES_SETTINGS['forceTransparency']:
-            self.content['transparency'] = u'transparent'
+            self.showbusy = "false"
+
+        if self.showbusy and len(self.showbusy) == 1 and self.showbusy[0].lower() in "true":
+            logging.info("Setting transparency as 'busy' for '%s'" % self.content['summary'])
+            self.content['transparency'] = "opaque"
+        else:
+            self.content['transparency'] = "transparent"
             
         # Strip comment and control rows (rows starting with #) from desc
         self.content['description'] = "\n".join([row for row in self.content['description'].split("\n") if not row.startswith("#")])

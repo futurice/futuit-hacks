@@ -10,7 +10,7 @@ CES_SETTINGS = {
     #"masterCalendarId" : "futurice.com_5oq1nn5ve93bvpbefu2cucarns@group.calendar.google.com",
 
     # Force created events to be transparent (user shown as "available")
-    "forceTransparency" : True,
+    "forceTransparency" : False,
     
     # Allowed groups (to allow any, set it to: None)
     "allowedGroups" : None,
