@@ -30,10 +30,11 @@ CES_SETTINGS = {
     # Log file
     "logFile" : "log/CES.log",
     # Identity storage file
-    "oauthStorage" : "CES.dat",
+    "oauthStorage" : "oauthstore/CES.dat",
 
-    # Default reminder notification (no notifications)
-    "default_reminders" : { "useDefault" : False }
+    # No reminders is default. Calendar default if set to true
+    "no_reminders" : { "useDefault" : False },
+    "default_reminders" : { 'useDefault': True }    
 }
 
 # Override these with a similar dict in private_settings

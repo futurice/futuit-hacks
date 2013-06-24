@@ -20,7 +20,15 @@ class cesEvent:
         # Would make sense to only use these to avoid confusion.
         self.target_groups_full = ["%s@%s" % (grp.lower(), CES_SETTINGS['domain']) for grp in self.target_groups]
 
-        self.content['reminders'] = CES_SETTINGS['default_reminders']
+        
+        self.reminder = self._parse_description_tag("#reminder:")
+        logging.debug("Parsed reminder tag is: %s" % self.reminder)
+
+        if self.reminder and len(self.reminder) == 1 and self.reminder[0].lower() in "true":
+            logging.info("Reminders enabled for '%s'" % self.content['summary'])
+            self.content['reminders'] = CES_SETTINGS['default_reminders']            
+        else:
+            self.content['reminders'] = CES_SETTINGS['no_reminders']
 
         self.master_id = self.content['id']
         self.content['extendedProperties'] = { "private" : 
