@@ -52,6 +52,8 @@ Supported control tags
 
 Implemented:
 #groups: <groupn>, <groupn+1>  - Add this event to members of specified groups
+#showbusy: <true/false> - Show user as busy or available, default: false (available)
+#reminder: <true/false> - Set a reminder on the calendar, default: false (no reminder)
 
 To be implemented:
 #delete: true - Delete this event from target calendars
