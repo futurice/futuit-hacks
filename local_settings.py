@@ -14,9 +14,12 @@ CES_SETTINGS = {
     
     # Allowed groups (to allow any, set it to: None)
     "allowedGroups" : None,
-    
+
     # Domain
     "domain" : "futurice.com",
+
+    # Discard calendars that aren't part of our domain
+    "discardNonDomain" : True,
 
     # Time deltas for master calendar reading (days). This will define how far in the past
     # and how far in the future we will read data from the master calendar from.

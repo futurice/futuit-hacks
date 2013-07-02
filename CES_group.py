@@ -69,7 +69,7 @@ def merge_recipients(service, groups):
     Returns an array of emails.
     """
     logging.debug("Entered merge_recipients, groups: %s" % groups)
-    
+
     group_key = groups_to_key(groups)
     
     # If we've already made the merge once we should get a cache hit
@@ -84,6 +84,10 @@ def merge_recipients(service, groups):
     for group in groups:
         result += get_group_members(service, group)
 
+    if CES_SETTINGS['discardNonDomain']:
+        domain_suff = "@" + CES_SETTINGS['domain']
+        result = [r for r in result if r.endswith(domain_suff)]
+    
     # We discard duplicates here
     AGGREGATE_GROUP_CACHE[group_key] = list(set(result))
 
