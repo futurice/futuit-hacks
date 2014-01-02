@@ -46,6 +46,8 @@ class cesEvent:
         self.content.pop("id", None)
         self.content.pop("iCalUID", None)
         self.content.pop("etag", None)
+        # Added this to avoid declines by rooms
+        self.content.pop("attendees", None)
         
         # Transparency handling (show user as busy/non-busy)
         self.showbusy = self._parse_description_tag("#showbusy:")
