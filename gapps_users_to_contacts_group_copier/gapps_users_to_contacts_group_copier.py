@@ -18,6 +18,7 @@ import logging
 import logging.config
 import ConfigParser
 import optparse
+import random
 from fnmatch import fnmatch
 import json
 import urllib
@@ -866,6 +867,7 @@ def main_logging():
     logging.info('Starting Directory to Contacts Group copy operation. Selection is "%s" (%d user(s)) and target is "%s" (%d user(s))',
         options.select_pattern, len(users_to_copy), options.user_pattern, len(target_user_emails))
 
+    random.shuffle(target_user_emails)
     for target_user_email in target_user_emails:
         # Act as the selected user
         ACTING_AS(target_user_email)
