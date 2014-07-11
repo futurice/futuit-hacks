@@ -950,7 +950,7 @@ def main_logging():
                         logging.info('%s: Renaming surplus auto-generated contact "%s" to "%s" with ID %s',
                             get_current_user(), old_name, existing_contact.name.full_name.text, existing_contact.id.text)
 
-                        # Batch version (same as above ‘Error 403 If-Match or If-None-Match header or entry etag …’)
+                        # Batch version (same as above "Error 403 If-Match or If-None-Match header or entry etag")
                         #request_feed.add_update(existing_contact)
                         #submit_batch()
 
