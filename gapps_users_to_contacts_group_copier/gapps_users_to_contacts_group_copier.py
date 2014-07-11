@@ -915,8 +915,16 @@ def main_logging():
                     if modified:
                         logging.info('%s: Modifying contact "%s" with ID %s',
                             get_current_user(), existing_contact.name.full_name.text, existing_contact.id.text)
-                        request_feed.add_update(existing_contact)
-                        submit_batch()
+
+                        # Batch version (fails in Jul 2014 'Error 403 If-Match or If-None-Match header or entry etag attribute required')
+                        #request_feed.add_update(existing_contact)
+                        #submit_batch()
+
+                        # One-by-one (non-batch) version:
+                        try:
+                            contacts_client.update(existing_contact)
+                        except:
+                            logging.exception('While updating 1 contact:')
                 else:
                     # Surplus contact
                     if options.delete_old:
