@@ -431,6 +431,8 @@ def set_rel_or_label(obj, json):
             return
         if json[u'type'] in type_to_rel_mapper:
             obj.rel = type_to_rel_mapper[json[u'type']]
+        else:
+            obj.rel = gdata.data.OTHER_REL
     else:
         obj.rel = DEFAULT_REL
 
@@ -560,6 +562,8 @@ def json_to_contact_object(json):
     elif options.organization_name:
         # Add at least our org name
         org_object = gdata.data.Organization()
+        # the API requires exactly one of 'rel' or 'label'
+        org_object.rel = DEFAULT_REL
         org_object.name = gdata.data.OrgName(options.organization_name)
         org_object.primary = "true"
         new_contact.organization = org_object
