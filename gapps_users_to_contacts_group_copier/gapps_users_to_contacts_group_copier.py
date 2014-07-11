@@ -949,8 +949,16 @@ def main_logging():
                         add_suffix(existing_contact)
                         logging.info('%s: Renaming surplus auto-generated contact "%s" to "%s" with ID %s',
                             get_current_user(), old_name, existing_contact.name.full_name.text, existing_contact.id.text)
-                        request_feed.add_update(existing_contact)
-                        submit_batch()
+
+                        # Batch version (same as above ‘Error 403 If-Match or If-None-Match header or entry etag …’)
+                        #request_feed.add_update(existing_contact)
+                        #submit_batch()
+
+                        # One-by-one (non-batch) version:
+                        try:
+                            contacts_client.update(existing_contact)
+                        except:
+                            logging.exception('While updating 1 contact:')
 
         submit_batch_final()
 
