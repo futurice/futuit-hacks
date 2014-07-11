@@ -643,6 +643,14 @@ def sync_contact(source, target):
             modified = True
             target.organization.symbol = source.organization.symbol
 
+        if source.organization.rel and target.organization.rel != source.organization.rel:
+            modified = True
+            target.organization.rel = source.organization.rel
+
+        if source.organization.label and target.organization.label != source.organization.label:
+            modified = True
+            target.organization.label = source.organization.label
+
     # Emails
     source_sync_emails = set([ email.address for email in source.email if is_sync_field(email) ])
     target_sync_emails = set([ email.address for email in target.email if is_sync_field(email) ])
