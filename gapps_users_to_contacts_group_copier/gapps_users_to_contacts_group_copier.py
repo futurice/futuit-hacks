@@ -254,6 +254,7 @@ def init_clients():
 
     request_feed = gdata.contacts.data.ContactsFeed()
 
+
 def ACTING_AS(email):
     """Sets domain token user."""
     logging.info('Domain token now acting as %s', email)
@@ -945,8 +946,7 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
     except Exception:
         logging.exception('While processing user ' + target_user_email + ':')
     finally:
-        # Submit this user's batch queue (and clear it) while still
-        # "acting as" him/her. Don't know if this matters.
+        # Submit batch queue while still "acting as" this user
         try:
             submit_batch_final()
         except Exception:

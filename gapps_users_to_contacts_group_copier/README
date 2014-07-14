@@ -4,6 +4,9 @@ selected organization's members.
 Depends on the gdata module. To install:
 $ sudo pip install gdata
 
+Run tests:
+python -m unittest discover
+
 To run the script:
 $ python gapps_users_to_contacts_group_copier.py -U <user>
 
