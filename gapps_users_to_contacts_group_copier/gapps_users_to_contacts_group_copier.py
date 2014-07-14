@@ -843,57 +843,19 @@ def get_value_by_contact_email(email_dict, contact):
 
     return email_dict[contact_emails[0].address.lower()]
 
-#
-# Main routine:
-#
+def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_dict):
+    """
+    The work to do for 1 user, moved from the main() loop to this function.
 
-def main():
-    # Set-up
-    os.chdir(os.path.dirname(sys.argv[0]))
-    parse_options()
-    logging.config.fileConfig(options.log_config)
-
-    try: main_logging()
-    except Exception, err:
-        logging.exception("Caught exception:")
-        sys.exit(1)
-
-def main_logging():
-    read_config()
-    init_clients()
-
-    if options.delete_old and options.rename_old:
-        logging.error("Conflicting options detected, aborting")
-        sys.exit(1)
-
-    # Get opt-out lists
-    optout_emails_set = get_optout_set()
-    
-    # Select domain users by options
-    (users_to_copy, target_user_emails) = select_users()
-    target_user_emails = filter(lambda user_email: user_email.lower() not in optout_emails_set, target_user_emails)
-    user_to_copy_by_ldap_dict = dict(zip([get_ldap_id_json(user_json) for user_json in users_to_copy], users_to_copy))
-
-    if len(users_to_copy) == 0:
-        logging.warn("Zero users to copy, aborting")
-        sys.exit(0)
-
-    if len(target_user_emails) == 0:
-        logging.warn("Zero target users found, aborting")
-        sys.exit(0)
-
-    logging.info('Starting Directory to Contacts Group copy operation. Selection is "%s" (%d user(s)) and target is "%s" (%d user(s))',
-        options.select_pattern, len(users_to_copy), options.user_pattern, len(target_user_emails))
-
-    random.shuffle(target_user_emails)
-    for target_user_email in target_user_emails:
+    Just moved the code with any used variables from main() as function args.
+    """
+    try:
         # Act as the selected user
         ACTING_AS(target_user_email)
 
         if options.undo:
             undo(target_user_email)
-            submit_batch_final()
-            continue
+            return
         
         # Get users' groups
         groups = contacts_client.get_groups().entry
@@ -980,8 +942,61 @@ def main_logging():
                             contacts_client.update(existing_contact)
                         except:
                             logging.exception('While updating 1 contact:')
+    except:
+        logging.exception('While processing user ' + target_user_email + ':')
+    finally:
+        # Submit this user's batch queue (and clear it) while still
+        # "acting as" him/her. Don't know if this matters.
+        try:
+            submit_batch_final()
+        except:
+            logging.exception('While submitting final batch for user ' + target_user_email + ':')
 
-        submit_batch_final()
+#
+# Main routine:
+#
+
+def main():
+    # Set-up
+    os.chdir(os.path.dirname(sys.argv[0]))
+    parse_options()
+    logging.config.fileConfig(options.log_config)
+
+    try: main_logging()
+    except Exception, err:
+        logging.exception("Caught exception:")
+        sys.exit(1)
+
+def main_logging():
+    read_config()
+    init_clients()
+
+    if options.delete_old and options.rename_old:
+        logging.error("Conflicting options detected, aborting")
+        sys.exit(1)
+
+    # Get opt-out lists
+    optout_emails_set = get_optout_set()
+
+    # Select domain users by options
+    (users_to_copy, target_user_emails) = select_users()
+    target_user_emails = filter(lambda user_email: user_email.lower() not in optout_emails_set, target_user_emails)
+    user_to_copy_by_ldap_dict = dict(zip([get_ldap_id_json(user_json) for user_json in users_to_copy], users_to_copy))
+
+    if len(users_to_copy) == 0:
+        logging.warn("Zero users to copy, aborting")
+        sys.exit(0)
+
+    if len(target_user_emails) == 0:
+        logging.warn("Zero target users found, aborting")
+        sys.exit(0)
+
+    logging.info('Starting Directory to Contacts Group copy operation. Selection is "%s" (%d user(s)) and target is "%s" (%d user(s))',
+        options.select_pattern, len(users_to_copy), options.user_pattern, len(target_user_emails))
+
+    random.shuffle(target_user_emails)
+    for target_user_email in target_user_emails:
+        process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_dict)
 
 if __name__ == "__main__":
     main()
