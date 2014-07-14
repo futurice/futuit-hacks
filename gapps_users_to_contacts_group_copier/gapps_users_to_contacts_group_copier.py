@@ -755,14 +755,25 @@ def undo(target_user):
     # is not comprehensive due to its size exceeding query limits.
     removed_ids = set()
 
-    contacts = contacts_client.get_contacts().entry
+    # without this query, get_contacts() only returns a few contacts
+    contacts_query = gdata.contacts.client.ContactsQuery()
+    contacts_query.max_results = config.getint(APP_CONFIG_SECTION, "max_contacts")
+    contacts = contacts_client.get_contacts(q=contacts_query).entry
     for contact in contacts:
         if is_script_contact(contact):
             logging.info('%s: Removing auto-generated contact "%s" with ID %s',
                 get_current_user(), contact.name.full_name.text, contact.id.text)
             removed_ids.add(contact.id.text)
-            request_feed.add_delete(entry=contact)
-            submit_batch()
+
+            # Batch version (fails in July 2014 'Error 403 If-Match or If-None-Match header or entry etag attribute required')
+            #request_feed.add_delete(entry=contact)
+            #submit_batch()
+
+            # One-by-one (non-batch) version:
+            try:
+                contacts_client.delete(contact)
+            except:
+                logging.exception('While deleting 1 contact:')
 
     # Get users' groups
     groups = contacts_client.get_groups().entry
@@ -774,8 +785,15 @@ def undo(target_user):
             if group_member.id.text not in removed_ids and is_script_contact(group_member):
                 logging.info('%s: Removing auto-generated contact "%s" with ID %s',
                     get_current_user(), group_member.name.full_name.text, group_member.id.text)
-                request_feed.add_delete(entry=group_member)
-                submit_batch()
+                # Batch version (fails in July 2014 'Error 403 If-Match or If-None-Match header or entry etag attribute required')
+                #request_feed.add_delete(entry=group_member)
+                #submit_batch()
+
+                # One-by-one (non-batch) version:
+                try:
+                    contacts_client.delete(group_member)
+                except:
+                    logging.exception('While deleting 1 contact:')
 
         # Remove group
         contacts_client.delete_group(magic_group)
@@ -874,6 +892,7 @@ def main_logging():
 
         if options.undo:
             undo(target_user_email)
+            submit_batch_final()
             continue
         
         # Get users' groups
