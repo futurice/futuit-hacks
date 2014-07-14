@@ -772,7 +772,7 @@ def undo(target_user):
             # One-by-one (non-batch) version:
             try:
                 contacts_client.delete(contact)
-            except:
+            except Exception:
                 logging.exception('While deleting 1 contact:')
 
     # Get users' groups
@@ -792,7 +792,7 @@ def undo(target_user):
                 # One-by-one (non-batch) version:
                 try:
                     contacts_client.delete(group_member)
-                except:
+                except Exception:
                     logging.exception('While deleting 1 contact:')
 
         # Remove group
@@ -918,7 +918,7 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
                         # One-by-one (non-batch) version:
                         try:
                             contacts_client.update(existing_contact)
-                        except:
+                        except Exception:
                             logging.exception('While updating 1 contact:')
                 else:
                     # Surplus contact
@@ -940,16 +940,16 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
                         # One-by-one (non-batch) version:
                         try:
                             contacts_client.update(existing_contact)
-                        except:
+                        except Exception:
                             logging.exception('While updating 1 contact:')
-    except:
+    except Exception:
         logging.exception('While processing user ' + target_user_email + ':')
     finally:
         # Submit this user's batch queue (and clear it) while still
         # "acting as" him/her. Don't know if this matters.
         try:
             submit_batch_final()
-        except:
+        except Exception:
             logging.exception('While submitting final batch for user ' + target_user_email + ':')
 
 #
