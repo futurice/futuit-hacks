@@ -771,10 +771,7 @@ def undo(target_user):
             #submit_batch()
 
             # One-by-one (non-batch) version:
-            try:
-                contacts_client.delete(contact)
-            except Exception:
-                logging.exception('While deleting 1 contact:')
+            contacts_client.delete(contact)
 
     # Get users' groups
     groups = contacts_client.get_groups().entry
@@ -791,10 +788,7 @@ def undo(target_user):
                 #submit_batch()
 
                 # One-by-one (non-batch) version:
-                try:
-                    contacts_client.delete(group_member)
-                except Exception:
-                    logging.exception('While deleting 1 contact:')
+                contacts_client.delete(group_member)
 
         # Remove group
         contacts_client.delete_group(magic_group)
@@ -917,10 +911,7 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
                         #submit_batch()
 
                         # One-by-one (non-batch) version:
-                        try:
-                            contacts_client.update(existing_contact)
-                        except Exception:
-                            logging.exception('While updating 1 contact:')
+                        contacts_client.update(existing_contact)
                 else:
                     # Surplus contact
                     if options.delete_old:
@@ -939,10 +930,7 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
                         #submit_batch()
 
                         # One-by-one (non-batch) version:
-                        try:
-                            contacts_client.update(existing_contact)
-                        except Exception:
-                            logging.exception('While updating 1 contact:')
+                        contacts_client.update(existing_contact)
     except Exception:
         logging.exception('While processing user ' + target_user_email + ':')
     finally:
