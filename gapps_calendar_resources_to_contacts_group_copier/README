@@ -12,6 +12,7 @@ $ python gapps_calendar_resources_to_contacts_group_copier.py --help
 
 Default parameters can be set in config.conf, or any file specified with
 --config FILE.
+cp config.conf.template config.conf
 
 This script requires a domain token, that is read from token_domain.conf or
 any file specfied with --domain-token FILE.
