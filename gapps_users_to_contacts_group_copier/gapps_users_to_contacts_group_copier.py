@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""A script that copies select Calendar Resources as contacts under a set group for selected organization's members."""
+"""A script that automatically synchronizes GApps Directory users under each user's Google Contacts in a special group."""
 __author__ = "vsin"
 __version__ = "1.0.0"
 

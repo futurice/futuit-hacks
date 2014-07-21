@@ -20,7 +20,7 @@ cp config.conf.template config.conf
 This script requires a domain token, that is read from token_domain.conf or
 any file specfied with --domain-token FILE.
 
-This script requires Calendar Resource API OAuth2 authorization from a domain
+This script requires Directory API OAuth2 authorization from a domain
 administrator.
 If you have not authorized the script before, it will need to
 interactively obtain an authorization token during the initial run. The
