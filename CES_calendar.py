@@ -81,10 +81,13 @@ class cesEvent:
         added, not_added = (0, 0)
         
         for target_email in target_emails:
-            if self._apply_to_calendar(calendar_service, target_email):
-                added += 1
-            else:
-                not_added += 1
+            try:
+                if self._apply_to_calendar(calendar_service, target_email):
+                    added += 1
+                else:
+                    not_added += 1
+            except Exception, e:
+                logging.warning("{}".format(e))
         
         logging.info("Apply to calendars for event '%s' done. Events added: %d, Not added: %d." % (self.master_id, added, not_added))
         return
