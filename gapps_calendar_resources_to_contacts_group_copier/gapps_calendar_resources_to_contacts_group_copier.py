@@ -495,14 +495,30 @@ def main_logging():
                     if sync_contact(calendar_contact, existing_contact):
                         logging.info('%s: Modifying contact "%s" with ID %s',
                             get_current_user(), existing_contact.name.full_name.text, existing_contact.id.text)
-                        request_feed.add_update(existing_contact)
-                        submit_batch()
+
+                        # Batch version (fails in Feb 2015 'Error 403 (If-Match or If-None-Match header or entry etag attribute required)')
+                        #request_feed.add_update(existing_contact)
+                        #submit_batch()
+
+                        # One-by-one (non-batch) version
+                        try:
+                            contacts_client.update(existing_contact)
+                        except:
+                            logging.exception('While updating 1 contact:')
 
                 elif options.delete_old: # Surplus, delete?
                     logging.info('%s: Removing surplus auto-generated contact "%s" with ID %s',
                         get_current_user(), existing_contact.name.full_name.text, existing_contact.id.text)
-                    request_feed.add_delete(entry=existing_contact)
-                    submit_batch()
+
+                    # Batch version (fails is Feb 2015 'Error 403 (If-Match or If-None-Match header or entry etag attribute required)').
+                    #request_feed.add_delete(entry=existing_contact)
+                    #submit_batch()
+
+                    # One-by-one (non-batch) version
+                    try:
+                        contacts_client.delete(existing_contact)
+                    except:
+                        logging.exception('While deleting 1 contact:')
 
 
         submit_batch_final()
