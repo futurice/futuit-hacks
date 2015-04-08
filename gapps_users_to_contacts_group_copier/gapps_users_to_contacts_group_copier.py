@@ -11,6 +11,7 @@ import gdata.contacts.client
 
 import interactive_gapps_auth
 
+import base64
 import sys
 import os.path
 import os
@@ -265,10 +266,19 @@ def get_current_user():
     return domain_token.requestor_id
 
 def get_ldap_id_json(json_user):
+    def b64dec(s):
+        """Decode a base64-encoded string which doesn't have padding"""
+        extra = len(s) % 4
+        if extra:
+            s += (4 - extra) * '='
+        return base64.b64decode(s)
+
     if u'externalIds' in json_user:
-        ldapIds = [ extid[u'value'] for extid in json_user[u'externalIds'] if u'customType' in extid and extid[u'customType'] == u'Employee ID' and u'value' in extid ]
-        if ldapIds:
-            return ldapIds[0]
+        extObjs = [x for x in json_user['externalIds']
+                if 'type' in x and x['type'] == 'organization']
+        b64LdapIds = [x['value'] for x in extObjs if 'value' in x]
+        if b64LdapIds:
+            return b64dec(b64LdapIds[0])
     return None
 
 def get_ldap_id_contact(contact):
