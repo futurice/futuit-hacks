@@ -639,7 +639,8 @@ def sync_contact(source, target):
             modified = True
             target.organization = gdata.data.Organization()
 
-        if source.organization.name and (not target.organization.name or target.organization.name.text != source.organization.name.text):
+        if (source.organization.name and source.organization.name.text and
+                (not target.organization.name or target.organization.name.text != source.organization.name.text)):
             modified = True
             target.organization.name = source.organization.name
 
