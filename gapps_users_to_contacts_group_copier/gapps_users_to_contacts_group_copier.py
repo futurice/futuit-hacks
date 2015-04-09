@@ -185,6 +185,13 @@ def parse_options():
         metavar="FILE",
         default="logging.conf")
 
+    parser.add_option(
+        "--delete-contacts",
+        dest="delete_contacts",
+        help="delete all matching existing contacts for processed user(s) before starting sync",
+        action="store_true",
+        default=False)
+
     options = parser.parse_args()[0]
 
 def read_config():
@@ -878,6 +885,15 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
             get_current_user(), magic_group.title.text,
             len(magic_group_members), magic_group.id.text)
 
+        # remove all existing contacts
+        if options.delete_contacts:
+            magic_group_ldaps_set = []
+            for existing_contact in magic_group_members:
+                if is_script_contact(existing_contact):
+                    existing_contact.extended_property = []
+                    contacts_client.delete(existing_contact)
+                    logging.info('%s: Removing contact "%s" with ID %s', get_current_user(), existing_contact.name.full_name.text, existing_contact.id.text)
+
         # Add new users (not already in the group) as contacts
         for user_to_copy in users_to_copy:
             if get_ldap_id_json(user_to_copy) not in magic_group_ldaps_set:
@@ -928,8 +944,7 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
                     if options.delete_old:
                         logging.info('%s: Removing surplus auto-generated contact "%s" with ID %s',
                             get_current_user(), existing_contact.name.full_name.text, existing_contact.id.text)
-                        request_feed.add_delete(entry=existing_contact)
-                        submit_batch()
+                        contacts_client.delete(existing_contact)
                     elif options.rename_old and not is_renamed_contact(existing_contact):
                         old_name = existing_contact.name.full_name.text
                         add_suffix(existing_contact)
