@@ -1,11 +1,9 @@
 #!/usr/bin/env python
+"""A script that copies select Calendar Resources as Contacts under a set group for selected organization's members."""
 
-"""A script that copies select Calendar Resources as contacts under a set group for selected organization's members."""
-__author__ = "vsin"
-__version__ = "1.0.0"
-
-import atom.data
-import gdata.contacts.data
+from atom.data import (Title, Content)
+from gdata.data import (ExtendedProperty, Name, GivenName, FullName, FamilyName, Email, WORK_REL)
+from gdata.contacts.data import (ContactsFeed, GroupMembershipInfo, GroupEntry, ContactEntry)
 from gdata.contacts.client import ContactsQuery
 
 from kids.cache import cache
@@ -24,7 +22,7 @@ from options import parse_options
 
 APP_CONFIG_SECTION = "application"
 PARAM_CONFIG_SECTION = "default_params"
-DEFAULT_REL = gdata.data.WORK_REL
+DEFAULT_REL = WORK_REL
 OPTOUT_URI = "https://intra.futurice.com/u/contacts/api/get_opted_out"
 OPTOUT_SETTING = "optout_rooms"
 MY_CONTACTS_ID = "Contacts"
@@ -89,10 +87,9 @@ def resources_to_contacts():
 
     for target_user in filtered_users:
         contacts_client = contacts(email=target_user)
-        admin_client = admin(email=target_user)
 
         if options().undo:
-            undo(target_user)
+            undo(contacts_client, target_user)
             continue
 
         # Get users Contacts groups
@@ -101,7 +98,6 @@ def resources_to_contacts():
         # Find Contact group by extended property
         magic_group = get_magic_group(groups) or create_magic_group(contacts_client)
         magic_group_members = get_group_members(contacts_client, magic_group)
-
         magic_group_emails_set = map(get('address'), flatmap(get('email'), magic_group_members))
 
         # Find My Contacts group
@@ -114,22 +110,22 @@ def resources_to_contacts():
 
         # Add new resources as contacts
         # batched
-        request_feed = gdata.contacts.data.ContactsFeed()
+        request_feed = ContactsFeed()
         for cal in filter(lambda x: \
                 x['id'] not in magic_group_emails_set, filtered_calendars):
             new_contact = resource_to_contact(cal)
-            
+
             # Add Contact to the relevant groups
-            new_contact.group_membership_info.append(gdata.contacts.data.GroupMembershipInfo(href=magic_group.id.text))
+            new_contact.group_membership_info.append(GroupMembershipInfo(href=magic_group.id.text))
             if options().my_contacts and my_contacts_group:
-                new_contact.group_membership_info.append(gdata.contacts.data.GroupMembershipInfo(href=my_contacts_group.id.text))
-                
+                new_contact.group_membership_info.append(GroupMembershipInfo(href=my_contacts_group.id.text))
+
             # Set Contact extended property
-            extprop = gdata.data.ExtendedProperty()
+            extprop = ExtendedProperty()
             extprop.name = options().contact_extended_property_name
             extprop.value = options().contact_extended_property_name
             new_contact.extended_property.append(extprop)
-            
+
             logging.debug('%s: Creating contact "%s"', target_user,
                     new_contact.name.full_name.text)
             request_feed.add_insert(new_contact)
@@ -138,22 +134,21 @@ def resources_to_contacts():
 
         # Sync data for existing calendars that were added by the script and remove those that have been deleted
         # non-batch
-        for existing_contact in magic_group_members:
-            if is_script_contact(existing_contact):
-                calendar_to_copy = get_value_by_contact_email(filtered_calendar_by_email_dict, existing_contact)
-                
-                if calendar_to_copy:
-                    # Sync data
-                    calendar_contact = resource_to_contact(calendar_to_copy)
-                    if sync_contact(calendar_contact, existing_contact):
-                        logging.info('%s: Modifying contact "%s" with ID %s',
-                            target_user, existing_contact.name.full_name.text, existing_contact.id.text)
-                        contacts_client.update(existing_contact)
+        for existing_contact in filter(is_script_contact, magic_group_members):
+            calendar_to_copy = get_value_by_contact_email(filtered_calendar_by_email_dict, existing_contact)
 
-                elif options().delete_old: # Surplus, delete?
-                    logging.info('%s: Removing surplus auto-generated contact "%s" with ID %s',
+            if calendar_to_copy:
+                # Sync data
+                calendar_contact = resource_to_contact(calendar_to_copy)
+                if sync_contact(calendar_contact, existing_contact):
+                    logging.info('%s: Modifying contact "%s" with ID %s',
                         target_user, existing_contact.name.full_name.text, existing_contact.id.text)
-                    contacts_client.delete(existing_contact)
+                    contacts_client.update(existing_contact)
+
+            elif options().delete_old: # Surplus, delete?
+                logging.info('%s: Removing surplus auto-generated contact "%s" with ID %s',
+                    target_user, existing_contact.name.full_name.text, existing_contact.id.text)
+                contacts_client.delete(existing_contact)
 
 def submit_batch(contacts_client, feed, force=False):
     if not force and len(feed.entry) < int(options().config.batch_max):
@@ -184,10 +179,10 @@ def get_group_members(contacts_client, group):
     return contacts_client.get_contacts(q=contacts_query).entry
 
 def create_magic_group(contacts_client):
-    new_group = gdata.contacts.data.GroupEntry()
-    new_group.title = atom.data.Title(options().group)
+    new_group = GroupEntry()
+    new_group.title = Title(options().group)
 
-    extprop = gdata.data.ExtendedProperty()
+    extprop = ExtendedProperty()
     extprop.name = options().group_extended_property_name
     extprop.value = options().group_extended_property_value
     new_group.extended_property.append(extprop)
@@ -206,7 +201,7 @@ def is_script_group(group):
                 and prop.value == options().group_extended_property_value,
         group.extended_property))
 
-def undo(target_user):
+def undo(contacts_client, target_user):
     # Let's delete users by global list and group list on the off chance the global list
     # is not comprehensive due to its size exceeding query limits.
     removed_ids = set()
@@ -265,7 +260,7 @@ def sync_contact(source, target):
     if source.name:
         if not target.name:
             modified = True
-            target.name = gdata.data.Name()
+            target.name = Name()
 
         if not target.name.given_name or target.name.given_name.text != source.name.given_name.text:
             modified = True
@@ -284,16 +279,16 @@ def sync_contact(source, target):
 def resource_to_contact(calendar):
     """Converts a calendar resource object to a contact object."""
     
-    contact = gdata.contacts.data.ContactEntry()
+    contact = ContactEntry()
 
     # Set the contact name.
-    contact.name = gdata.data.Name(
-        given_name=gdata.data.GivenName(text=calendar.GetResourceCommonName()),
-        family_name=gdata.data.FamilyName(text=options().family_name),
-        full_name=gdata.data.FullName(text=calendar.GetResourceCommonName()))
-    contact.content = atom.data.Content(text=calendar.GetResourceDescription())
+    contact.name = Name(
+        given_name=GivenName(text=calendar.GetResourceCommonName()),
+        family_name=FamilyName(text=options().family_name),
+        full_name=FullName(text=calendar.GetResourceCommonName()))
+    contact.content = Content(text=calendar.GetResourceDescription())
     # Set the contact email address
-    contact.email.append(gdata.data.Email(address=calendar.GetResourceEmail(),
+    contact.email.append(Email(address=calendar.GetResourceEmail(),
         primary='true', display_name=calendar.GetResourceCommonName(), rel=DEFAULT_REL))
 
     return contact
