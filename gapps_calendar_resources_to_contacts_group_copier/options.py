@@ -1,4 +1,6 @@
-import optparse
+import os, optparse, logging, ConfigParser
+
+from kids.cache import cache
 
 def parse_options():
     parser = optparse.OptionParser()
@@ -92,3 +94,22 @@ def parse_options():
         default="logging.conf")
 
     return parser.parse_args()[0]
+
+@cache
+def options():
+    o = parse_options()
+    logging.config.fileConfig(o.log_config)
+    config = ConfigParser.RawConfigParser()
+    config.read(o.config)
+
+    # parse config in-order
+    keys = []
+    for section in config.sections():
+        for param in config.options(section):
+            keys.append(param)
+            setattr(o, param, config.get(section, param))
+
+    # environment variables can be used to override configs
+    for key in keys:
+        setattr(o, key, os.getenv(key.upper(), getattr(o, key)))
+    return o

@@ -6,28 +6,18 @@ from gdata.data import (ExtendedProperty, Name, GivenName, FullName, FamilyName,
 from gdata.contacts.data import (ContactsFeed, GroupMembershipInfo, GroupEntry, ContactEntry)
 from gdata.contacts.client import ContactsQuery
 
-from kids.cache import cache
-
 import sys
 import os.path
-import os
 import logging
 import logging.config
-import ConfigParser
-import optparse
 from fnmatch import fnmatch
 import urllib
 import json
-from options import parse_options
 
-APP_CONFIG_SECTION = "application"
-PARAM_CONFIG_SECTION = "default_params"
 DEFAULT_REL = WORK_REL
-OPTOUT_URI = "https://intra.futurice.com/u/contacts/api/get_opted_out"
-OPTOUT_SETTING = "optout_rooms"
-MY_CONTACTS_ID = "Contacts"
 
 from google_apis import calendar, contacts, admin
+from options import options
 
 from operator import attrgetter as get, itemgetter as iget
 import itertools
@@ -37,20 +27,6 @@ def flatmap(func, *iterable):
 
 def filtermap(cond, match, *iter):
     return map(match, filter(cond, *iter))
-
-@cache
-def options():
-    o = parse_options()
-    logging.config.fileConfig(o.log_config)
-    config = ConfigParser.RawConfigParser()
-    config.read(o.config)
-
-    for section in [PARAM_CONFIG_SECTION, APP_CONFIG_SECTION]:
-        if config.has_section(section):
-            for param in config.options(section):
-                if not hasattr(o, param) or getattr(o, param) is None:
-                    setattr(o, param, config.get(section, param))
-    return o
 
 def resources_to_contacts():
     # Get calendar resources
@@ -102,7 +78,7 @@ def resources_to_contacts():
 
         # Find My Contacts group
         my_contacts_group = next(iter(
-            filter(lambda group: group.system_group and group.system_group.id == MY_CONTACTS_ID, groups)), None)
+            filter(lambda group: group.system_group and group.system_group.id == options().my_contacts_id, groups)), None)
 
         logging.info('%s: Using group called "%s" with %d members and ID %s',
             target_user, magic_group.title.text, len(magic_group_members),
@@ -237,9 +213,9 @@ def get_optout_set():
     """Returns a set of user-names who wish to opt-out from synchronization."""
     return []
 
-    optout_json = json.load(urllib.urlopen(OPTOUT_URI))
+    optout_json = json.load(urllib.urlopen(config().optout_uri))
     if u'settings' in optout_json and \
-        unicode(OPTOUT_SETTING) in optout_json[u'settings']:
+        unicode('optout_rooms') in optout_json[u'settings']:
         return set(map(lambda user_email: user_email.lower(), optout_json[u'settings'][u'optout_employees']))
 
     raise Exception("Could not understand opt-out data format")

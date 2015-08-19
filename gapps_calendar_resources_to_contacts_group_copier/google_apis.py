@@ -9,8 +9,8 @@ from gdata.gauth import OAuth2TokenFromCredentials
 from oauth2client.client import flow_from_clientsecrets
 from oauth2client.file import Storage
 
-SERVICE_ACCOUNT_EMAIL = '573247622343-dm1dkn76ei4jqk4856jo7551ddvp6eke@developer.gserviceaccount.com'
-SERVICE_ACCOUNT_PKCS12_FILE_PATH = 'service.p12'
+from options import options
+
 GDATA_SERVICES = {'contacts': gdata.contacts.client.ContactsClient,}
 
 def ensureOAuthCredentials(secrets_file='client_secrets.json',
@@ -34,9 +34,9 @@ def ensureOAuthCredentials(secrets_file='client_secrets.json',
     return credentials
 
 def get_service_account_credentials(scopes=[], user_email=''):
-    with file(SERVICE_ACCOUNT_PKCS12_FILE_PATH, 'rb') as f:
+    with file(options().service_account_pkcs12_file_path, 'rb') as f:
         key = f.read()
-    return SignedJwtAssertionCredentials(SERVICE_ACCOUNT_EMAIL,
+    return SignedJwtAssertionCredentials(options().service_account_email,
         key,
         scope=scopes,
         sub=user_email)
