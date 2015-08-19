@@ -16,7 +16,7 @@ import json
 
 DEFAULT_REL = WORK_REL
 
-from google_apis import calendar, contacts, admin
+from google_apis import calendar, calendar_resource, contacts, admin
 from options import options
 
 from operator import attrgetter as get, itemgetter as iget
@@ -30,16 +30,12 @@ def filtermap(cond, match, *iter):
 
 def resources_to_contacts():
     # Get calendar resources
-    calendars = calendar().calendarList().list(maxResults=250).execute()
-    calendars = calendars.get('items', [])
+    calendars = calendar_resource().get_resource_feed(uri=options().calendar_resource_feed).entry
+
     # Select calendars by options
     filtered_calendars = filter(lambda cal: \
-        fnmatch(cal.get('id', ''), options().select_pattern), calendars)
-    filtered_calendar_by_email_dict = dict(zip([cal['id'] for cal in filtered_calendars], filtered_calendars))
-
-    if not filtered_calendars:
-        logging.warn("No calendars matched %s, aborting", options().select_pattern)
-        sys.exit(0)
+        fnmatch(cal.resource_email, options().select_pattern), calendars)
+    filtered_calendar_by_email_dict = dict(zip([cal.resource_email for cal in filtered_calendars], filtered_calendars))
 
     # Fetch all domain users
     all_users = admin().users().list(domain=options().domain, maxResults=500).execute()
@@ -53,10 +49,6 @@ def resources_to_contacts():
     filtered_users = filtermap(lambda user: fnmatch(user['primaryEmail'], options().user_pattern) and \
                 unicode(user['primaryEmail']).lower() not in optout_emails_set,
                 iget('primaryEmail'), all_users)
-
-    if not filtered_users:
-        logging.warn("Zero target users found, aborting")
-        sys.exit(0)
 
     logging.info('Starting Calendar Resource to Contacts Group copy operation. Selection is "%s" (%d calendar(s)) and target is "%s" (%d user(s))',
         options().select_pattern, len(filtered_calendars), options().user_pattern, len(filtered_users))
@@ -88,7 +80,7 @@ def resources_to_contacts():
         # batched
         request_feed = ContactsFeed()
         for cal in filter(lambda x: \
-                x['id'] not in magic_group_emails_set, filtered_calendars):
+                x.resource_email not in magic_group_emails_set, filtered_calendars):
             new_contact = resource_to_contact(cal)
 
             # Add Contact to the relevant groups
@@ -120,14 +112,13 @@ def resources_to_contacts():
                     logging.info('%s: Modifying contact "%s" with ID %s',
                         target_user, existing_contact.name.full_name.text, existing_contact.id.text)
                     contacts_client.update(existing_contact)
-
             elif options().delete_old: # Surplus, delete?
                 logging.info('%s: Removing surplus auto-generated contact "%s" with ID %s',
                     target_user, existing_contact.name.full_name.text, existing_contact.id.text)
                 contacts_client.delete(existing_contact)
 
 def submit_batch(contacts_client, feed, force=False):
-    if not force and len(feed.entry) < int(options().config.batch_max):
+    if not force and len(feed.entry) < int(options().batch_max):
         return # Wait for more requests
 
     result_feed = contacts_client.execute_batch(feed)
@@ -155,6 +146,8 @@ def get_group_members(contacts_client, group):
     return contacts_client.get_contacts(q=contacts_query).entry
 
 def create_magic_group(contacts_client):
+    logging.info('Creating magic group: {}'.format(options().group))
+
     new_group = GroupEntry()
     new_group.title = Title(options().group)
 
@@ -183,13 +176,12 @@ def undo(contacts_client, target_user):
     removed_ids = set()
 
     contacts = contacts_client.get_contacts().entry
-    for contact in contacts:
-        if is_script_contact(contact):
-            logging.info('%s: Removing auto-generated contact "%s" with ID %s',
-                get_current_user(), contact.name.full_name.text, contact.id.text)
-            removed_ids.add(contact.id.text)
-            request_feed.add_delete(entry=contact)
-            submit_batch()
+    for contact in filter(is_script_contact, contacts):
+        logging.info('%s: Removing auto-generated contact "%s" with ID %s',
+            get_current_user(), contact.name.full_name.text, contact.id.text)
+        removed_ids.add(contact.id.text)
+        request_feed.add_delete(entry=contact)
+        submit_batch()
     
     # Get users' groups
     groups = contacts_client.get_groups().entry
@@ -254,19 +246,14 @@ def sync_contact(source, target):
 
 def resource_to_contact(calendar):
     """Converts a calendar resource object to a contact object."""
-    
     contact = ContactEntry()
-
-    # Set the contact name.
     contact.name = Name(
-        given_name=GivenName(text=calendar.GetResourceCommonName()),
+        given_name=GivenName(text=calendar.resource_common_name),
         family_name=FamilyName(text=options().family_name),
-        full_name=FullName(text=calendar.GetResourceCommonName()))
-    contact.content = Content(text=calendar.GetResourceDescription())
-    # Set the contact email address
-    contact.email.append(Email(address=calendar.GetResourceEmail(),
-        primary='true', display_name=calendar.GetResourceCommonName(), rel=DEFAULT_REL))
-
+        full_name=FullName(text=calendar.resource_common_name))
+    contact.content = Content(text=calendar.resource_description)
+    contact.email.append(Email(address=calendar.resource_email,
+        primary='true', display_name=calendar.resource_common_name, rel=DEFAULT_REL))
     return contact
 
 def get_value_by_contact_email(email_dict, contact):

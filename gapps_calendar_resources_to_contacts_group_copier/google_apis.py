@@ -4,14 +4,17 @@ import sys
 from apiclient.discovery import build
 from oauth2client.client import SignedJwtAssertionCredentials
 
-import gdata.contacts.client
+from gdata.contacts.client import ContactsClient
+from gdata.calendar_resource.client import CalendarResourceClient
 from gdata.gauth import OAuth2TokenFromCredentials
 from oauth2client.client import flow_from_clientsecrets
 from oauth2client.file import Storage
 
 from options import options
 
-GDATA_SERVICES = {'contacts': gdata.contacts.client.ContactsClient,}
+GDATA_SERVICES = {
+'contacts': ContactsClient,
+'calendar_resource': CalendarResourceClient,}
 
 def ensureOAuthCredentials(secrets_file='client_secrets.json',
         storage_file='a_credentials_file',
@@ -66,11 +69,19 @@ def calendar(email=None):
                 'https://apps-apis.google.com/a/feeds/calendar/resource/',],
                 email=email))
 
+def calendar_resource(email=None):
+    return get_gdata_api(name='calendar_resource',
+            domain=options().domain,
+            credentials=get_credentials(scopes=['https://apps-apis.google.com/a/feeds/calendar/resource/',],
+            email=email,
+            storage_file='gdata_credential_file'))
+
 def contacts(email=None):
     return get_gdata_api(name='contacts',
             domain=options().domain,
-            credentials=get_credentials(scopes=['https://www.google.com/m8/feeds'],
-            email=email))
+            credentials=get_credentials(scopes=['https://www.google.com/m8/feeds',],
+            email=email,
+            storage_file='gdata_credential_file'))
 
 def admin(email=None):
     return get_discovery_api(name='admin',

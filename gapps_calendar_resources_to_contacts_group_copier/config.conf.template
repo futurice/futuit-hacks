@@ -1,13 +1,15 @@
 [default_params]
 select_pattern = futurice.com_*@resource.calendar.google.com
-user_pattern = google.test@futurice.com
+user_pattern = *
 group = Room calendars
 family_name = Room
 my_contacts_id = Contacts
 optout_uri = https://intra.futurice.com/u/contacts/api/get_opted_out
+my_contacts = False
 
 [application]
 domain = futurice.com
+calendar_resource_feed = https://apps-apis.google.com/a/feeds/calendar/resource/2.0/%(domain)s/
 user_agent = Futurice-RoomsCopier-1
 client_id =
 client_secret =
