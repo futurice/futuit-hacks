@@ -7,6 +7,7 @@ from gdata.contacts.data import (ContactsFeed, GroupMembershipInfo, GroupEntry, 
 from gdata.contacts.client import ContactsQuery
 
 import sys
+import copy
 import os.path
 import logging
 import logging.config
@@ -18,6 +19,7 @@ DEFAULT_REL = WORK_REL
 
 from google_apis import calendar, calendar_resource, contacts, admin, patched_batch
 from options import options
+from dots import compare_object_values, err, dotset, dotget
 
 from operator import attrgetter as get, itemgetter as iget
 import itertools
@@ -27,6 +29,10 @@ def flatmap(func, *iterable):
 
 def filtermap(cond, match, *iter):
     return map(match, filter(cond, *iter))
+
+def exhaust(resource):
+    # TODO: paginate to get all results
+    return resource
 
 def resources_to_contacts():
     # Get calendar resources
@@ -217,38 +223,19 @@ def get_optout_set():
 
 
 def sync_contact(source, target):
-    """Copies data from source contact to target contact and returns True if target was modified."""
-    
-    modified = False
-
-    # Notes
-    if source.content and source.content.text:
-        if not target.content or target.content.text != source.content.text:
-            modified = True
-            target.content = source.content
-
-    # Name
-    if source.name:
-        if not target.name:
-            modified = True
-            target.name = Name()
-
-        if not target.name.given_name or target.name.given_name.text != source.name.given_name.text:
-            modified = True
-            target.name.given_name = source.name.given_name
-
-        if not target.name.family_name or target.name.family_name.text != source.name.family_name.text:
-            modified = True
-            target.name.family_name = source.name.family_name
-
-        if not target.name.full_name or target.name.full_name.text != source.name.full_name.text:
-            modified = True
-            target.name.full_name = source.name.full_name
-
-    return modified
+    """Copies data from source contact to target contact and returns changes, if target was modified."""
+    keys = ['content','name','name.given_name','name.family_name','name.full_name']
+    changes = compare_object_values(source, target, keys,
+            cmp=err(lambda x,y: x.text==y.text),
+            cmp_value=lambda x: '{}.text'.format(x),
+            flat=True,
+            allow_empty_values=False)
+    for k, v in changes.iteritems():
+        dotset(target, k, dotget(source, k))
+    return changes
 
 def resource_to_contact(calendar):
-    """Converts a calendar resource object to a contact object."""
+    """Converts a Calendar Resource object to a Contact object."""
     contact = ContactEntry()
     contact.name = Name(
         given_name=GivenName(text=calendar.resource_common_name),
@@ -295,7 +282,7 @@ def get_value_by_contact_email(email_dict, contact):
         contact_emails = matching_emails
 
     if len(contact_emails) > 1: logging.warn('%s: Several matching emails (%s) for contact "%s" with ID %s',
-        get_current_user(),
+        contact,
         map(lambda email: email.address, contact_emails),
         contact.name and contact.name.full_name and contact.name.full_name.text or "(unknown)",
         contact.id and contact.id.text)
