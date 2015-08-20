@@ -4,6 +4,8 @@ import sys
 from apiclient.discovery import build
 from oauth2client.client import SignedJwtAssertionCredentials
 
+import gdata.client
+import atom.http_core
 from gdata.contacts.client import ContactsClient
 from gdata.calendar_resource.client import CalendarResourceClient
 from gdata.gauth import OAuth2TokenFromCredentials
@@ -90,3 +92,20 @@ def admin(email=None):
                 'https://www.googleapis.com/auth/admin.directory.group',
                 'https://www.googleapis.com/auth/admin.directory.user',],
                 email=email))
+
+# http://stackoverflow.com/questions/23576729/getting-if-match-or-if-none-match-header-or-entry-etag-attribute-required-erro
+def patched_post(client, entry, uri, auth_token=None, converter=None, desired_class=None, **kwargs):
+    if converter is None and desired_class is None:
+        desired_class = entry.__class__
+    http_request = atom.http_core.HttpRequest()
+    entry_string = entry.to_string(gdata.client.get_xml_version(client.api_version))
+    entry_string = entry_string.replace('ns1', 'gd') # where the magic happens
+    http_request.add_body_part(entry_string, 'application/atom+xml')
+    return client.request(method='POST', uri=uri, auth_token=auth_token,
+            http_request=http_request,
+            converter=converter,
+            desired_class=desired_class, **kwargs)
+
+def patched_batch(client_instance, entry_feed):
+    return patched_post(client_instance, entry_feed, 'https://www.google.com/m8/feeds/contacts/default/full/batch')
+

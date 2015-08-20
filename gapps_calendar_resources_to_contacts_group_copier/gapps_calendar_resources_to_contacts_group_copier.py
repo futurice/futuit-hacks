@@ -16,7 +16,7 @@ import json
 
 DEFAULT_REL = WORK_REL
 
-from google_apis import calendar, calendar_resource, contacts, admin
+from google_apis import calendar, calendar_resource, contacts, admin, patched_batch
 from options import options
 
 from operator import attrgetter as get, itemgetter as iget
@@ -77,7 +77,6 @@ def resources_to_contacts():
             magic_group.id.text)
 
         # Add new resources as contacts
-        # batched
         request_feed = ContactsFeed()
         for cal in filter(lambda x: \
                 x.resource_email not in magic_group_emails_set, filtered_calendars):
@@ -91,7 +90,7 @@ def resources_to_contacts():
             # Set Contact extended property
             extprop = ExtendedProperty()
             extprop.name = options().contact_extended_property_name
-            extprop.value = options().contact_extended_property_name
+            extprop.value = options().contact_extended_property_value
             new_contact.extended_property.append(extprop)
 
             logging.debug('%s: Creating contact "%s"', target_user,
@@ -101,7 +100,7 @@ def resources_to_contacts():
         submit_batch(contacts_client, request_feed, force=True)
 
         # Sync data for existing calendars that were added by the script and remove those that have been deleted
-        # non-batch
+        request_feed = ContactsFeed()
         for existing_contact in filter(is_script_contact, magic_group_members):
             calendar_to_copy = get_value_by_contact_email(filtered_calendar_by_email_dict, existing_contact)
 
@@ -111,17 +110,19 @@ def resources_to_contacts():
                 if sync_contact(calendar_contact, existing_contact):
                     logging.info('%s: Modifying contact "%s" with ID %s',
                         target_user, existing_contact.name.full_name.text, existing_contact.id.text)
-                    contacts_client.update(existing_contact)
+                    request_feed.add_update(existing_contact)
             elif options().delete_old: # Surplus, delete?
                 logging.info('%s: Removing surplus auto-generated contact "%s" with ID %s',
                     target_user, existing_contact.name.full_name.text, existing_contact.id.text)
-                contacts_client.delete(existing_contact)
+                request_feed.add_delete(existing_contact)
+            submit_batch(contacts_client, request_feed)
+        submit_batch(contacts_client, request_feed, force=True)
 
 def submit_batch(contacts_client, feed, force=False):
     if not force and len(feed.entry) < int(options().batch_max):
         return # Wait for more requests
 
-    result_feed = contacts_client.execute_batch(feed)
+    result_feed = patched_batch(contacts_client, feed)
     for result in result_feed.entry:
         try: status_code = int(result.batch_status.code)
         except ValueError: status_code = -1
@@ -176,30 +177,32 @@ def undo(contacts_client, target_user):
     removed_ids = set()
 
     contacts = contacts_client.get_contacts().entry
+    request_feed = ContactsFeed()
     for contact in filter(is_script_contact, contacts):
         logging.info('%s: Removing auto-generated contact "%s" with ID %s',
-            get_current_user(), contact.name.full_name.text, contact.id.text)
+                target_user, contact.name.full_name.text, contact.id.text)
         removed_ids.add(contact.id.text)
         request_feed.add_delete(entry=contact)
-        submit_batch()
+        submit_batch(contacts_client, request_feed)
+    submit_batch(contacts_client, request_feed, force=True)
     
-    # Get users' groups
+    # Get Contact groups
     groups = contacts_client.get_groups().entry
-
-    # Find group by extended property
     magic_group = get_magic_group(groups)
     if magic_group:
-        for group_member in get_group_members(magic_group):
-            if group_member.id.text not in removed_ids and is_script_contact(group_member):
+        request_feed = ContactsFeed()
+        for group_member in filter(is_script_contact, get_group_members(contacts_client, magic_group)):
+            if group_member.id.text not in removed_ids:
                 logging.info('%s: Removing auto-generated contact "%s" with ID %s',
-                    get_current_user(), group_member.name.full_name.text, group_member.id.text)
+                    target_user, group_member.name.full_name.text, group_member.id.text)
                 request_feed.add_delete(entry=group_member)
-                submit_batch()
+                submit_batch(contacts_client, request_feed)
+        submit_batch(contacts_client, request_feed, force=True)
 
         # Remove group
         contacts_client.delete_group(magic_group)
         logging.info('%s: Removing auto-generated group "%s" with ID %s',
-            get_current_user(), magic_group.title.text, magic_group.id.text)
+                target_user, magic_group.title.text, magic_group.id.text)
 
 def get_optout_set():
     """Returns a set of user-names who wish to opt-out from synchronization."""
