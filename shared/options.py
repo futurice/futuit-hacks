@@ -18,7 +18,6 @@ def options():
     parser = import_module(os.getenv('PARSER')).parse_options()
 
     o = parser.parse_args()
-    print o
 
     logging.config.fileConfig(fileloc(o.log_config))
 

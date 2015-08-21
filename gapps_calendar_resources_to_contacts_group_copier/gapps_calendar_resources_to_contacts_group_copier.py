@@ -12,15 +12,14 @@ import os.path
 import logging
 import logging.config
 from fnmatch import fnmatch
-import urllib
-import json
 from operator import attrgetter as get, itemgetter as iget
 
 DEFAULT_REL = WORK_REL
 
-from shared.google_apis import calendar_resource, contacts, admin, patched_batch
+from shared.google_apis import calendar_resource, contacts, admin, submit_batch, patched_batch
 from shared.dots import compare_object_values, err, dotset, dotget
 from shared.fn import flatmap, filtermap
+from shared.futurice import get_optout_set
 
 os.environ.setdefault('PARSER', 'gapps_calendar_resources_to_contacts_group_copier.options')
 os.environ.setdefault('ROOTDIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), ''))
@@ -45,7 +44,7 @@ def resources_to_contacts():
 
     # Get opt-out lists
     # TODO: opt-out data should NOT be used (stale emails); move service to FUM
-    optout_emails_set = set() if not options().undo else get_optout_set()
+    optout_emails_set = set() if not options().undo else get_optout_set(options().optout_uri)
 
     # Select domain users by options
     filtered_users = filtermap(lambda user: fnmatch(user['primaryEmail'], options().user_pattern) and \
@@ -98,7 +97,7 @@ def resources_to_contacts():
             logging.debug('%s: Creating contact "%s"', target_user,
                     new_contact.name.full_name.text)
             request_feed.add_insert(new_contact)
-            submit_batch(contacts_client, request_feed)
+            submit_batch(contacts_client, request_feed, batch_max=options().batch_max)
         submit_batch(contacts_client, request_feed, force=True)
 
         # Sync data for existing Calendar Resources that were added by the script. Remove those that have been deleted
@@ -116,25 +115,8 @@ def resources_to_contacts():
                 logging.info('%s: Removing surplus auto-generated contact "%s" with ID %s',
                     target_user, existing_contact.name.full_name.text, existing_contact.id.text)
                 request_feed.add_delete(existing_contact)
-            submit_batch(contacts_client, request_feed)
+            submit_batch(contacts_client, request_feed, batch_max=options().batch_max)
         submit_batch(contacts_client, request_feed, force=True)
-
-def submit_batch(contacts_client, feed, force=False):
-    if not force and len(feed.entry) < int(options().batch_max):
-        return # Wait for more requests
-
-    result_feed = patched_batch(contacts_client, feed)
-    for result in result_feed.entry:
-        try: status_code = int(result.batch_status.code)
-        except ValueError: status_code = -1
-        if status_code < 200 or status_code >= 400:
-            logging.warn("Error %d (%s) while %s'ing batch ID %s = %s (%s)",
-                status_code,
-                result.batch_status.reason,
-                result.batch_operation.type,
-                result.batch_id.text,
-                result.id and result.id.text or result.get_id(),
-                result.name and result.name.full_name and result.name.full_name or "name unknown")
 
 def get_magic_group(groups):
     return next(iter(filter(is_script_group, groups)), None)
@@ -184,7 +166,7 @@ def undo(contacts_client, target_user):
                 target_user, contact.name.full_name.text, contact.id.text)
         removed_ids.add(contact.id.text)
         request_feed.add_delete(entry=contact)
-        submit_batch(contacts_client, request_feed)
+        submit_batch(contacts_client, request_feed, batch_max=options().batch_max)
     submit_batch(contacts_client, request_feed, force=True)
     
     # Get Contact groups
@@ -197,24 +179,13 @@ def undo(contacts_client, target_user):
                 logging.info('%s: Removing auto-generated contact "%s" with ID %s',
                     target_user, group_member.name.full_name.text, group_member.id.text)
                 request_feed.add_delete(entry=group_member)
-                submit_batch(contacts_client, request_feed)
+                submit_batch(contacts_client, request_feed, batch_max=options().batch_max)
         submit_batch(contacts_client, request_feed, force=True)
 
         # Remove group
         contacts_client.delete_group(magic_group)
         logging.info('%s: Removing auto-generated group "%s" with ID %s',
                 target_user, magic_group.title.text, magic_group.id.text)
-
-def get_optout_set():
-    """Returns a set of user-names who wish to opt-out from synchronization."""
-    return []
-
-    optout_json = json.load(urllib.urlopen(config().optout_uri))
-    if u'settings' in optout_json and \
-        unicode('optout_rooms') in optout_json[u'settings']:
-        return set(map(lambda user_email: user_email.lower(), optout_json[u'settings'][u'optout_employees']))
-
-    raise Exception("Could not understand opt-out data format")
 
 
 def sync_contact(source, target):

@@ -22,6 +22,8 @@ from fnmatch import fnmatch
 import json
 import urllib
 
+from shared.futurice import get_optout_set
+
 options = None
 config = None
 
@@ -36,8 +38,6 @@ DIRECTORY_URI = "https://www.googleapis.com/admin/directory/v1/users?"
 DOMAIN = None
 DEFAULT_REL = gdata.data.WORK_REL
 DEFAULT_EXTERNAL_ID_REL = u'organization'
-OPTOUT_URI = "https://intra.futurice.com/u/contacts/api/get_opted_out"
-OPTOUT_SETTING = "optout_employees"
 EXTPROP_CONTACT_ID_NAME = None
 EXTPROP_CONTACT_SOURCE_NAME = None
 EXTPROP_CONTACT_SOURCE_VALUE = None
@@ -52,146 +52,6 @@ apps_client = None
 domain_token = None
 request_feed = None
 
-#
-# Helpers:
-#
-
-def parse_options():
-    global options
-
-    parser = optparse.OptionParser()
-
-    parser.add_option(
-        "-S", "--select-pattern",
-        dest="select_pattern",
-        help="select users to copy by pattern GLOB against user's email address",
-        metavar="GLOB")
-
-    parser.add_option(
-        "-P", "--no-phone",
-        dest="phone",
-        action="store_false",
-        default=True,
-        help="copy also those users who do NOT have a phone number set (default: only copy users who have a phone number set)")
-
-    parser.add_option(
-        "-U", "--user-pattern",
-        dest="user_pattern",
-        help="copy contacts to all users whose email address matches GLOB",
-        metavar="GLOB")
-
-    parser.add_option(
-        "-G", "--group",
-        dest="group",
-        help="copy contacts under group NAME",
-        metavar="NAME")
-    
-    parser.add_option(
-        "-M", "--my-contacts",
-        dest="my_contacts",
-        action="store_true",
-        default=False,
-        help="add contacts to My Contacts as well")
-        
-    parser.add_option(
-        "-D", "--delete-old",
-        dest="delete_old",
-        action="store_true",
-        default=False,
-        help="also check the target group for old contacts added by this script and delete those")
-
-    parser.add_option(
-        "-R", "--rename-old",
-        dest="rename_old",
-        action="store_true",
-        default=False,
-        help="also check the target group for old contacts added by this script and rename them with a suffix")
-        
-    parser.add_option(
-        "--rename-suffix",
-        dest="rename_suffix",
-        help="suffix string to use in conjunction with --rename-old",
-        metavar="SUFFIX")
-
-    parser.add_option(
-        "--add-other-emails",
-        dest="add_other_emails",
-        action="store_true",
-        default=False,
-        help="also add all user's other e-mail addresses to contacts [default: only add the primary email]")
-
-    parser.add_option(
-        "--add-aliases",
-        dest="add_aliases",
-        action="store_true",
-        default=False,
-        help="also add all user's e-mail aliases to contacts [default: only add the primary email]")
-    
-    parser.add_option(
-        "-O", "--organization-name",
-        dest="organization_name",
-        help="organization name to use for contacts when not specified",
-        metavar="NAME")
-        
-    parser.add_option(
-        "--undo",
-        dest="undo",
-        action="store_true",
-        default=False,
-        help="remove all groups and contacts added by this script [dangerous]")
-    
-
-    parser.add_option(
-        "-r", "--reauth",
-        dest="reauth",
-        action="store_true",
-        default=False,
-        help="reauthorize Google Account")
-
-    parser.add_option(
-        "-b", "--batch",
-        dest="batch",
-        action="store_true",
-        default=False,
-        help="batch operation (consider interactive reauthorization an error)")
-
-    parser.add_option(
-        "-t", "--token",
-        dest="token_file",
-        help="use OAuth2 token FILE [default: %default]",
-        metavar="FILE",
-        default="token.conf")
-
-    parser.add_option(
-        "-d", "--domain-token",
-        dest="domain_file",
-        help="use domain token FILE [default: %default]",
-        metavar="FILE",
-        default="token_domain.conf")
-
-    parser.add_option(
-        "-c", "--config",
-        dest="config",
-        help="read application configuration from FILE [default: %default]",
-        metavar="FILE",
-        default="config.conf")
-
-    parser.add_option(
-        "-l", "--log-config",
-        dest="log_config",
-        help="read logging configuration from FILE [default: %default]",
-        metavar="FILE",
-        default="logging.conf")
-
-    parser.add_option(
-        "--delete-contacts",
-        dest="delete_contacts",
-        help="delete all matching existing contacts for processed user(s) before starting sync",
-        action="store_true",
-        default=False)
-
-    options = parser.parse_args()[0]
-
 def read_config():
     global config, DOMAIN, DEFAULT_REL, EXTPROP_CONTACT_ID_NAME, \
         EXTPROP_CONTACT_SOURCE_NAME, EXTPROP_CONTACT_SOURCE_VALUE, \
@@ -199,7 +59,7 @@ def read_config():
         EXTPROP_GROUP_NAME, EXTPROP_GROUP_VALUE
 
     config = ConfigParser.RawConfigParser()
-    config.read(options.config)
+    config.read(options().config)
 
     # Set default params
     if config.has_section(PARAM_CONFIG_SECTION):
@@ -218,57 +78,6 @@ def read_config():
     EXTPROP_CONTACT_RENAMED_VALUE = config.get(APP_CONFIG_SECTION, "contact_renamed_extended_property_value")
     EXTPROP_GROUP_NAME = config.get(APP_CONFIG_SECTION, "group_extended_property_name")
     EXTPROP_GROUP_VALUE = config.get(APP_CONFIG_SECTION, "group_extended_property_value")
-
-def get_optout_set():
-    """Returns a set of user-names who wish to opt-out from synchronization."""
-
-    optout_json = json.load(urllib.urlopen(OPTOUT_URI))
-    if u'settings' in optout_json and \
-        unicode(OPTOUT_SETTING) in optout_json[u'settings']:
-        optout_users = set(map(lambda user_email: user_email.lower(), optout_json[u'settings'][u'optout_employees']))
-        logging.debug("Optout users: %s" % optout_users)
-        return optout_users
-
-    logging.error("Could not understand opt-out data format")
-    sys.exit(1)
-
-def init_clients():
-    global contacts_client, apps_client, domain_token, request_feed
-
-    # Get tokens
-    domain_token = interactive_gapps_auth.obtain_domain_token(
-        token_file=options.domain_file)
-
-    try:
-        admin_token = interactive_gapps_auth.obtain_oauth2_token(
-            token_file=options.token_file,
-            scopes=config.get(APP_CONFIG_SECTION, "oauth_scopes"),
-            client_id=config.get(APP_CONFIG_SECTION, "client_id"),
-            client_secret=config.get(APP_CONFIG_SECTION, "client_secret"),
-            user_agent=config.get(APP_CONFIG_SECTION, "user_agent"),
-            reauth=options.reauth,
-            batch=options.batch)
-    except interactive_gapps_auth.ReAuthRequiredError:
-        logging.error("Re-authorization required but --batch was specified.")
-        sys.exit(1)
-
-    contacts_client = gdata.contacts.client.ContactsClient(DOMAIN, auth_token=domain_token)
-
-    apps_client = gdata.apps.client.AppsClient(DOMAIN)
-    admin_token.authorize(apps_client)
-    apps_client.ssl = True
-
-    request_feed = gdata.contacts.data.ContactsFeed()
-
-
-def ACTING_AS(email):
-    """Sets domain token user."""
-    logging.info('Domain token now acting as %s', email)
-    domain_token.requestor_id = email
-
-def get_current_user():
-    """Gets domain token user."""
-    return domain_token.requestor_id
 
 def get_ldap_id_json(json_user):
     def b64dec(s):
@@ -293,7 +102,7 @@ def get_ldap_id_contact(contact):
     return None
 
 def select_users():
-    """Select users by set options."""
+    """Select users by set options()."""
     users_to_copy = []
     target_user_emails = []
     
@@ -310,10 +119,10 @@ def select_users():
         if u'users' in response:
             for user in response[u'users']:
                 if u'primaryEmail' in user:
-                    if fnmatch(user[u'primaryEmail'], options.user_pattern):
+                    if fnmatch(user[u'primaryEmail'], options().user_pattern):
                         target_user_emails.append(user[u'primaryEmail'])
-                    if fnmatch(user[u'primaryEmail'], options.select_pattern) and \
-                        (not options.phone or ( \
+                    if fnmatch(user[u'primaryEmail'], options().select_pattern) and \
+                        (not options().phone or ( \
                             u'phones' in user and \
                             any([ u'value' in phone and phone[u'value'] for phone in user[u'phones'] ]) ) \
                         ) and get_ldap_id_json(user):
@@ -339,7 +148,7 @@ def get_magic_group(groups, create=True):
     # No group found, create
     logging.info('%s: No domain contact group found, creating..', get_current_user())
     new_group = gdata.contacts.data.GroupEntry()
-    new_group.title = atom.data.Title(options.group)
+    new_group.title = atom.data.Title(options().group)
 
     # Set extended property
     extprop = gdata.data.ExtendedProperty()
@@ -348,31 +157,6 @@ def get_magic_group(groups, create=True):
     new_group.extended_property.append(extprop)
 
     return (contacts_client.CreateGroup(new_group=new_group), [])
-
-def submit_batch(force=False):
-    global request_feed
-    
-    if not force and len(request_feed.entry) < config.getint(APP_CONFIG_SECTION, "batch_max"):
-        return # Wait for more requests
-
-    result_feed = contacts_client.execute_batch(request_feed)
-    for result in result_feed.entry:
-        try: status_code = int(result.batch_status.code)
-        except ValueError: status_code = -1
-        if status_code < 200 or status_code >= 400:
-            logging.warn("%s: Error %d (%s) while %s'ing batch ID %s = %s (%s)",
-                get_current_user(),
-                status_code,
-                result.batch_status.reason,
-                result.batch_operation.type,
-                result.batch_id.text,
-                result.id and result.id.text or result.get_id(),
-                result.name and result.name.full_name and result.name.full_name or "name unknown")
-
-    # Return next feed
-    request_feed = gdata.contacts.data.ContactsFeed()
-
-submit_batch_final = lambda: submit_batch(force=True)
 
 # Return if contact was added by the script
 is_script_contact = lambda contact: len(filter(
@@ -394,8 +178,8 @@ def add_suffix(contact):
     if contact.name.name_suffix and contact.name.name_suffix.text:
         old_suffix = contact.name.name_suffix.text + " "
     else: old_suffix = ""
-    contact.name.name_suffix = gdata.data.NameSuffix(old_suffix + options.rename_suffix)
-    contact.name.full_name = gdata.data.FullName(contact.name.full_name.text + " " + options.rename_suffix)
+    contact.name.name_suffix = gdata.data.NameSuffix(old_suffix + options().rename_suffix)
+    contact.name.full_name = gdata.data.FullName(contact.name.full_name.text + " " + options().rename_suffix)
 
     # Add ext prop to signal that this contact has been renamed by the script
     extprop = gdata.data.ExtendedProperty()
@@ -466,7 +250,7 @@ def json_to_organization_object(json):
     set_rel_or_label(org_object, json)
 
     if u'name' in json: org_object.name = gdata.data.OrgName(json[u'name'])
-    elif options.organization_name: org_object.name = gdata.data.OrgName(options.organization_name)
+    elif options().organization_name: org_object.name = gdata.data.OrgName(options().organization_name)
     if u'title' in json: org_object.title = gdata.data.OrgTitle(json[u'title'])
     if u'department' in json: org_object.department = gdata.data.OrgDepartment(json[u'department'])
     if u'symbol' in json: org_object.symbol = gdata.data.OrgSymbol(json[u'symbol'])
@@ -546,7 +330,7 @@ def json_to_contact_object(json):
         primary='true', display_name=json[u'name'][u'fullName'], rel=DEFAULT_REL))
 
     # Add aliases
-    if options.add_aliases:
+    if options().add_aliases:
         if u'aliases' in json:
             for alias in json[u'aliases']:
                 new_contact.email.append(gdata.data.Email(address=alias,
@@ -557,7 +341,7 @@ def json_to_contact_object(json):
                     primary='false', display_name=json[u'name'][u'fullName'], rel=DEFAULT_REL))
 
     # Add other emails
-    if options.add_other_emails and u'emails' in json:
+    if options().add_other_emails and u'emails' in json:
         for json_email in json[u'emails']:
             if u'address' in json_email:
                 email_object = json_to_email_object(json_email)
@@ -576,12 +360,12 @@ def json_to_contact_object(json):
         org_object.primary = "true"
         new_contact.organization = org_object
         
-    elif options.organization_name:
+    elif options().organization_name:
         # Add at least our org name
         org_object = gdata.data.Organization()
         # the API requires exactly one of 'rel' or 'label'
         org_object.rel = DEFAULT_REL
-        org_object.name = gdata.data.OrgName(options.organization_name)
+        org_object.name = gdata.data.OrgName(options().organization_name)
         org_object.primary = "true"
         new_contact.organization = org_object
 
@@ -861,10 +645,7 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
     Just moved the code with any used variables from main() as function args.
     """
     try:
-        # Act as the selected user
-        ACTING_AS(target_user_email)
-
-        if options.undo:
+        if options().undo:
             undo(target_user_email)
             return
         
@@ -884,7 +665,7 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
             len(magic_group_members), magic_group.id.text)
 
         # remove all existing contacts
-        if options.delete_contacts:
+        if options().delete_contacts:
             magic_group_ldaps_set = []
             for existing_contact in magic_group_members:
                 if is_script_contact(existing_contact):
@@ -899,7 +680,7 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
                 
                 # Add the relevant groups
                 new_contact.group_membership_info.append(gdata.contacts.data.GroupMembershipInfo(href=magic_group.id.text))
-                if options.my_contacts and my_contacts_group:
+                if options().my_contacts and my_contacts_group:
                     new_contact.group_membership_info.append(gdata.contacts.data.GroupMembershipInfo(href=my_contacts_group.id.text))
                 
                 # Set extended properties
@@ -918,7 +699,7 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
                     user_to_copy = user_to_copy_by_ldap_dict[get_ldap_id_contact(existing_contact)]
                     modified = False
 
-                    if options.rename_old and is_renamed_contact(existing_contact):
+                    if options().rename_old and is_renamed_contact(existing_contact):
                         # Remove renamed flag
                         remove_suffix(existing_contact)
                         modified = True
@@ -939,11 +720,11 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
                         contacts_client.update(existing_contact)
                 else:
                     # Surplus contact
-                    if options.delete_old:
+                    if options().delete_old:
                         logging.info('%s: Removing surplus auto-generated contact "%s" with ID %s',
                             get_current_user(), existing_contact.name.full_name.text, existing_contact.id.text)
                         contacts_client.delete(existing_contact)
-                    elif options.rename_old and not is_renamed_contact(existing_contact):
+                    elif options().rename_old and not is_renamed_contact(existing_contact):
                         old_name = existing_contact.name.full_name.text
                         add_suffix(existing_contact)
                         logging.info('%s: Renaming surplus auto-generated contact "%s" to "%s" with ID %s',
@@ -969,26 +750,14 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
 #
 
 def main():
-    # Set-up
-    os.chdir(os.path.dirname(sys.argv[0]))
-    parse_options()
-    logging.config.fileConfig(options.log_config)
-
-    try: main_logging()
-    except Exception, err:
-        logging.exception("Caught exception:")
-        sys.exit(1)
+    main_logging()
 
 def main_logging():
-    read_config()
-    init_clients()
-
-    if options.delete_old and options.rename_old:
-        logging.error("Conflicting options detected, aborting")
-        sys.exit(1)
+    if options().delete_old and options().rename_old:
+        sys.exit("Conflicting options detected, aborting")
 
     # Get opt-out lists
-    optout_emails_set = get_optout_set()
+    optout_emails_set = get_optout_set(options().optout_uri)
 
     # Select domain users by options
     (users_to_copy, target_user_emails) = select_users()
@@ -1004,7 +773,7 @@ def main_logging():
         sys.exit(0)
 
     logging.info('Starting Directory to Contacts Group copy operation. Selection is "%s" (%d user(s)) and target is "%s" (%d user(s))',
-        options.select_pattern, len(users_to_copy), options.user_pattern, len(target_user_emails))
+        options().select_pattern, len(users_to_copy), options().user_pattern, len(target_user_emails))
 
     random.shuffle(target_user_emails)
     for target_user_email in target_user_emails:

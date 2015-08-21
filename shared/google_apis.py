@@ -98,6 +98,23 @@ def admin(email=None, options=None):
                 'https://www.googleapis.com/auth/admin.directory.user',],
                 email=email, options=options))
 
+def submit_batch(contacts_client, feed, force=False, batch_max=100):
+    if not force and len(feed.entry) < int(batch_max):
+        return # Wait for more requests
+
+    result_feed = patched_batch(contacts_client, feed)
+    for result in result_feed.entry:
+        try: status_code = int(result.batch_status.code)
+        except ValueError: status_code = -1
+        if status_code < 200 or status_code >= 400:
+            logging.warn("Error %d (%s) while %s'ing batch ID %s = %s (%s)",
+                status_code,
+                result.batch_status.reason,
+                result.batch_operation.type,
+                result.batch_id.text,
+                result.id and result.id.text or result.get_id(),
+                result.name and result.name.full_name and result.name.full_name or "name unknown")
+
 # http://stackoverflow.com/questions/23576729/getting-if-match-or-if-none-match-header-or-entry-etag-attribute-required-erro
 def patched_post(client, entry, uri, auth_token=None, converter=None, desired_class=None, **kwargs):
     if converter is None and desired_class is None:
