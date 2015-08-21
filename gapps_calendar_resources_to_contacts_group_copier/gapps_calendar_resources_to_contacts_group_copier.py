@@ -35,13 +35,13 @@ def exhaust(resource):
     return resource
 
 def resources_to_contacts():
-    # Get calendar resources
+    # Get Calendar Resources
     calendars = calendar_resource().get_resource_feed(uri=options().calendar_resource_feed).entry
 
-    # Select calendars by options
+    # Select Calendars by options
     filtered_calendars = filter(lambda cal: \
         fnmatch(cal.resource_email, options().select_pattern), calendars)
-    filtered_calendar_by_email_dict = dict(zip([cal.resource_email for cal in filtered_calendars], filtered_calendars))
+    filtered_calendar_by_email_dict = dict(zip(map(get('resource_email'), filtered_calendars), filtered_calendars))
 
     # Fetch all domain users
     all_users = admin().users().list(domain=options().domain, maxResults=500).execute()
@@ -66,15 +66,15 @@ def resources_to_contacts():
             undo(contacts_client, target_user)
             continue
 
-        # Get users Contacts groups
+        # Get Contacts Groups for user
         groups = contacts_client.get_groups().entry
 
-        # Find Contact group by extended property
+        # Find Contact Group by extended property
         magic_group = get_magic_group(groups) or create_magic_group(contacts_client)
         magic_group_members = get_group_members(contacts_client, magic_group)
         magic_group_emails_set = map(get('address'), flatmap(get('email'), magic_group_members))
 
-        # Find My Contacts group
+        # Find "My Contacts" group in Contacts
         my_contacts_group = next(iter(
             filter(lambda group: group.system_group and group.system_group.id == options().my_contacts_id, groups)), None)
 
@@ -82,11 +82,11 @@ def resources_to_contacts():
             target_user, magic_group.title.text, len(magic_group_members),
             magic_group.id.text)
 
-        # Add new resources as contacts
+        # Add new Calendar Resources as Contacts
         request_feed = ContactsFeed()
         for cal in filter(lambda x: \
                 x.resource_email not in magic_group_emails_set, filtered_calendars):
-            new_contact = resource_to_contact(cal)
+            new_contact = calendar_resource_to_contact(cal)
 
             # Add Contact to the relevant groups
             new_contact.group_membership_info.append(GroupMembershipInfo(href=magic_group.id.text))
@@ -105,19 +105,18 @@ def resources_to_contacts():
             submit_batch(contacts_client, request_feed)
         submit_batch(contacts_client, request_feed, force=True)
 
-        # Sync data for existing calendars that were added by the script and remove those that have been deleted
+        # Sync data for existing Calendar Resources that were added by the script. Remove those that have been deleted
         request_feed = ContactsFeed()
         for existing_contact in filter(is_script_contact, magic_group_members):
-            calendar_to_copy = get_value_by_contact_email(filtered_calendar_by_email_dict, existing_contact)
+            calendar_resource_to_copy = get_value_by_contact_email(filtered_calendar_by_email_dict, existing_contact)
 
-            if calendar_to_copy:
-                # Sync data
-                calendar_contact = resource_to_contact(calendar_to_copy)
+            if calendar_resource_to_copy:
+                calendar_contact = calendar_resource_to_contact(calendar_resource_to_copy)
                 if sync_contact(calendar_contact, existing_contact):
                     logging.info('%s: Modifying contact "%s" with ID %s',
                         target_user, existing_contact.name.full_name.text, existing_contact.id.text)
                     request_feed.add_update(existing_contact)
-            elif options().delete_old: # Surplus, delete?
+            elif options().delete_old:
                 logging.info('%s: Removing surplus auto-generated contact "%s" with ID %s',
                     target_user, existing_contact.name.full_name.text, existing_contact.id.text)
                 request_feed.add_delete(existing_contact)
@@ -234,8 +233,8 @@ def sync_contact(source, target):
         dotset(target, k, dotget(source, k))
     return changes
 
-def resource_to_contact(calendar):
-    """Converts a Calendar Resource object to a Contact object."""
+def calendar_resource_to_contact(calendar):
+    """Converts a Calendar Resource to a Contact."""
     contact = ContactEntry()
     contact.name = Name(
         given_name=GivenName(text=calendar.resource_common_name),
@@ -247,45 +246,21 @@ def resource_to_contact(calendar):
     return contact
 
 def get_value_by_contact_email(email_dict, contact):
-    """Resolve contact object to email key in email_dict and return the first matching value."""
+    """Resolve Contact to email key in email_dict and return the first matching value."""
 
-    # Get all emails with a match in dictionary
     matching_emails = filter(
         lambda email: email.address and email.address.lower() in email_dict,
-        contact.email
-    )
+        contact.email)
 
-    if len(matching_emails) == 0: return None
+    if not matching_emails:
+        return None
 
-    # Get primary work emails
     contact_emails = filter(
         lambda email: email.primary == 'true' and email.rel == DEFAULT_REL,
-        matching_emails
-    )
+        matching_emails)
 
-    if len(contact_emails) == 0:
-        # No primary work email? Get non-primary work emails
-        contact_emails = filter(
-            lambda email: email.rel == DEFAULT_REL,
-            matching_emails
-        )
-
-    if len(contact_emails) == 0:
-        # No work email? Get primary emails
-        contact_emails = filter(
-            lambda email: email.primary == 'true',
-            matching_emails
-        )
-
-    if len(contact_emails) == 0:
-        # No primary email? Get all matching emails
+    if not contact_emails:
         contact_emails = matching_emails
-
-    if len(contact_emails) > 1: logging.warn('%s: Several matching emails (%s) for contact "%s" with ID %s',
-        contact,
-        map(lambda email: email.address, contact_emails),
-        contact.name and contact.name.full_name and contact.name.full_name.text or "(unknown)",
-        contact.id and contact.id.text)
 
     return email_dict[contact_emails[0].address.lower()]
 
