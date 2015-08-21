@@ -14,21 +14,17 @@ import logging.config
 from fnmatch import fnmatch
 import urllib
 import json
+from operator import attrgetter as get, itemgetter as iget
 
 DEFAULT_REL = WORK_REL
 
-from google_apis import calendar, calendar_resource, contacts, admin, patched_batch
-from options import options
-from dots import compare_object_values, err, dotset, dotget
+from shared.google_apis import calendar_resource, contacts, admin, patched_batch
+from shared.dots import compare_object_values, err, dotset, dotget
+from shared.fn import flatmap, filtermap
 
-from operator import attrgetter as get, itemgetter as iget
-import itertools
-
-def flatmap(func, *iterable):
-    return itertools.chain.from_iterable(map(func, *iterable))
-
-def filtermap(cond, match, *iter):
-    return map(match, filter(cond, *iter))
+os.environ.setdefault('PARSER', 'gapps_calendar_resources_to_contacts_group_copier.options')
+os.environ.setdefault('ROOTDIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), ''))
+from shared.options import options
 
 def exhaust(resource):
     # TODO: paginate to get all results
@@ -36,7 +32,7 @@ def exhaust(resource):
 
 def resources_to_contacts():
     # Get Calendar Resources
-    calendars = calendar_resource().get_resource_feed(uri=options().calendar_resource_feed).entry
+    calendars = calendar_resource(options=options()).get_resource_feed(uri=options().calendar_resource_feed).entry
 
     # Select Calendars by options
     filtered_calendars = filter(lambda cal: \
@@ -44,7 +40,7 @@ def resources_to_contacts():
     filtered_calendar_by_email_dict = dict(zip(map(get('resource_email'), filtered_calendars), filtered_calendars))
 
     # Fetch all domain users
-    all_users = admin().users().list(domain=options().domain, maxResults=500).execute()
+    all_users = admin(options=options()).users().list(domain=options().domain, maxResults=500).execute()
     all_users = all_users.get('users', [])
 
     # Get opt-out lists
@@ -60,7 +56,7 @@ def resources_to_contacts():
         options().select_pattern, len(filtered_calendars), options().user_pattern, len(filtered_users))
 
     for target_user in filtered_users:
-        contacts_client = contacts(email=target_user)
+        contacts_client = contacts(email=target_user, options=options())
 
         if options().undo:
             undo(contacts_client, target_user)

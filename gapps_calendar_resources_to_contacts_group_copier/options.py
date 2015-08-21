@@ -1,7 +1,4 @@
-import os, sys, argparse, logging, ConfigParser
-import logging.config
-
-from kids.cache import cache
+import os, argparse
 
 def parse_options():
     parser = argparse.ArgumentParser()
@@ -67,38 +64,4 @@ def parse_options():
         default="logging.conf")
 
     return parser
-
-def provided_arguments(parser):
-    p = vars(parser.parse_args())
-    o = []
-    for action in parser._actions[1:]:
-        if(p.get(action.dest) and p[action.dest] != action.default):
-            o.append(action.dest)
-    return o
-
-@cache
-def options():
-    parser = parse_options()
-    o = parser.parse_args()
-
-    logging.config.fileConfig(o.log_config)
-
-    config = ConfigParser.SafeConfigParser()
-    config.read(o.config)
-
-    # parse config in-order
-    keys = []
-    for section in config.sections():
-        for param in config.options(section):
-            keys.append(param)
-            setattr(o, param, config.get(section, param))
-
-    # cli arguments override configs
-    for key in provided_arguments(parser):
-        setattr(o, key, getattr(parser.parse_args(), key))
-
-    # environment variables override configs
-    for key in keys:
-        setattr(o, key, os.getenv(key.upper(), getattr(o, key)))
-    return o
 

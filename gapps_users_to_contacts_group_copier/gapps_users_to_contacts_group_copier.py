@@ -9,8 +9,6 @@ import atom.data
 import gdata.contacts.data
 import gdata.contacts.client
 
-import interactive_gapps_auth
-
 import base64
 import sys
 import os.path
