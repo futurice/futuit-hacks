@@ -4,12 +4,11 @@ user_pattern = google.test@futurice.com
 group = Futurice employees
 organization_name = Futurice
 rename_suffix = (EX)
+optout_uri = 
 
 [application]
 domain = futurice.com
 user_agent = Futurice-DirectoryCopier-1
-client_id = DUMMY
-client_secret = DUMMY
 oauth_scopes = https://www.googleapis.com/auth/admin.directory.user.readonly
 max_contacts = 10000
 batch_max = 100
@@ -20,3 +19,7 @@ contact_source_extended_property_name = com.futurice.source
 contact_source_extended_property_value = dircopier-employees
 contact_renamed_extended_property_name = com.futurice.renamed
 contact_renamed_extended_property_value = true
+client_id = 
+client_secret = 
+service_account_email = 
+service_account_pkcs12_file_path = service.p12

@@ -20,6 +20,7 @@ from shared.google_apis import calendar_resource, contacts, admin, submit_batch,
 from shared.dots import compare_object_values, err, dotset, dotget
 from shared.fn import flatmap, filtermap
 from shared.futurice import get_optout_set
+from shared.implementation import get_magic_group, get_group_members, create_magic_group, is_script_contact, is_script_group
 
 os.environ.setdefault('PARSER', 'gapps_calendar_resources_to_contacts_group_copier.options')
 os.environ.setdefault('ROOTDIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), ''))
@@ -112,42 +113,6 @@ def resources_to_contacts():
                 request_feed.add_delete(existing_contact)
             submit_batch(contacts_client, request_feed, batch_max=options().batch_max)
         submit_batch(contacts_client, request_feed, force=True)
-
-def get_magic_group(groups):
-    return next(iter(filter(is_script_group, groups)), None)
-
-def get_group_members(contacts_client, group):
-    if not group:
-        return []
-    contacts_query = ContactsQuery()
-    contacts_query.group = group.id.text
-    contacts_query.max_results = options().max_contacts
-    return contacts_client.get_contacts(q=contacts_query).entry
-
-def create_magic_group(contacts_client):
-    logging.info('Creating magic group: {}'.format(options().group))
-
-    new_group = GroupEntry()
-    new_group.title = Title(options().group)
-
-    extprop = ExtendedProperty()
-    extprop.name = options().group_extended_property_name
-    extprop.value = options().group_extended_property_value
-    new_group.extended_property.append(extprop)
-
-    return contacts_client.create_group(new_group=new_group)
-
-def is_script_contact(contact):
-    return any(filter(
-        lambda prop: prop.name == options().contact_extended_property_name \
-                and prop.value == options().contact_extended_property_value,
-            contact.extended_property))
-
-def is_script_group(group):
-    return any(filter(
-        lambda prop: prop.name == options().group_extended_property_name \
-                and prop.value == options().group_extended_property_value,
-        group.extended_property))
 
 def undo(contacts_client, target_user):
     # Let's delete users by global list and group list on the off chance the global list

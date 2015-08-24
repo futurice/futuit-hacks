@@ -21,9 +21,11 @@ import random
 from fnmatch import fnmatch
 import json
 import urllib
+from operator import attrgetter as get, itemgetter as iget
 
 from shared.futurice import get_optout_set
 from shared.google_apis import contacts, admin, submit_batch, patched_batch, exhaust
+from shared.implementation import get_magic_group, get_group_members, create_magic_group, is_script_contact, is_script_group
 
 # Set of those Contact field relation values that are overwritten by the script
 SYNC_ORG_RELS = set([WORK_REL, MOBILE_REL])
@@ -46,15 +48,16 @@ def b64dec(s):
 def get_ldap_id_json(user):
     """
     GADS syncs EmployeeID under externalIds: [{type: organization, value: base64encoded(EmployeeID)}]
+    - return plaintext EmployeeID
     """
-    return reduce(lambda x,y: b64dec(x['value']) if x['type']=='organization' else None,
-            user.get('externalIds', []))
+    return next(iter(filter(None,
+            map(lambda x: b64dec(x['value']) if x['type']=='organization' else None,
+                user.get('externalIds', []))
+            )), None)
 
 def get_ldap_id_contact(contact):
-    ldapIds = [ extprop.value for extprop in contact.extended_property if extprop.name == options().contact_id_extended_property_name ]
-    if ldapIds:
-        return ldapIds[0]
-    return None
+    return next(iter([extprop.value for extprop in contact.extended_property \
+            if extprop.name == options().contact_id_extended_property_name]), None)
 
 def select_users():
     users_to_copy = []
@@ -79,31 +82,6 @@ def select_users():
 
     return (users_to_copy, target_user_emails)
 
-def get_magic_group(groups, create=True):
-    for group in groups:
-        if is_script_group(group):
-            # Found group, get members
-            contacts_query = gdata.contacts.client.ContactsQuery()
-            contacts_query.group = group.id.text
-            contacts_query.max_results = config.getint(APP_CONFIG_SECTION, "max_contacts")
-            return (group, contacts_client.get_contacts(q=contacts_query).entry)
-
-    if not create:
-        return (None, [])
-    
-    # No group found, create
-    logging.info('%s: No domain contact group found, creating..', get_current_user())
-    new_group = gdata.contacts.data.GroupEntry()
-    new_group.title = Title(options().group)
-
-    # Set extended property
-    extprop = gdata.data.ExtendedProperty()
-    extprop.name = options().group_extended_property_name
-    extprop.value = options().group_extended_property_value
-    new_group.extended_property.append(extprop)
-
-    return (contacts_client.CreateGroup(new_group=new_group), [])
-
 # Return if contact was added by the script
 is_script_contact = lambda contact: len(filter(
     lambda extprop: extprop.name == options().contact_source_extended_property_name and extprop.value == options().contact_source_extended_property_value,
@@ -113,11 +91,6 @@ is_script_contact = lambda contact: len(filter(
 is_renamed_contact = lambda contact: len(filter(
     lambda extprop: extprop.name == options().contact_renamed_extended_property_name and extprop.value == options().contact_renamed_extended_property_value,
     contact.extended_property)) > 0
-    
-# Return if contact group was added by the script
-is_script_group = lambda group: len(filter(
-    lambda extprop: extprop.name == options().group_extended_property_name and extprop.value == options().group_extended_property_value,
-    group.extended_property)) > 0
 
 # Rename contact with "deleted" suffix
 def add_suffix(contact):
@@ -583,111 +556,99 @@ def get_value_by_contact_email(email_dict, contact):
     return email_dict[contact_emails[0].address.lower()]
 
 def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_dict):
-    """
-    The work to do for 1 user, moved from the main() loop to this function.
+    contacts_client = contacts(email=target_user_email, options=options())
 
-    Just moved the code with any used variables from main() as function args.
-    """
-    try:
-        if options().undo:
-            undo(target_user_email)
-            return
-        
-        # Get users' groups
-        groups = contacts_client.get_groups().entry
+    if options().undo:
+        undo(target_user_email)
+        return
+    
+    users_groups = contacts_client.get_groups().entry
 
-        # Find group by extended property
-        (magic_group, magic_group_members) = get_magic_group(groups)
-        magic_group_ldaps_set = filter(None, [ get_ldap_id_contact(contact) for contact in magic_group_members ])
+    # Find group by extended property
+    magic_group = get_magic_group(users_groups) or create_magic_group(contacts_client)
+    magic_group_members = get_group_members(contacts_client, magic_group)
+    magic_group_ldaps_set = filter(None, [ get_ldap_id_contact(contact) for contact in magic_group_members ])
 
-        # Find My Contacts group
-        my_contacts_group = filter(lambda group: group.system_group and group.system_group.id == options().my_contacts_id, groups)
-        if my_contacts_group: my_contacts_group = my_contacts_group[0]
+    # Find "My Contacts" group in Contacts
+    my_contacts_group = next(iter(
+        filter(lambda group: group.system_group and group.system_group.id == options().my_contacts_id, users_groups)), None)
 
-        logging.info('%s: Using group called "%s" with %d members and ID %s',
-            get_current_user(), magic_group.title.text,
-            len(magic_group_members), magic_group.id.text)
+    logging.info('%s: Using group called "%s" with %d members and ID %s',
+        target_user_email, magic_group.title.text,
+        len(magic_group_members), magic_group.id.text)
 
-        # remove all existing contacts
-        if options().delete_contacts:
-            magic_group_ldaps_set = []
-            for existing_contact in magic_group_members:
-                if is_script_contact(existing_contact):
-                    existing_contact.extended_property = []
-                    contacts_client.delete(existing_contact)
-                    logging.info('%s: Removing contact "%s" with ID %s', get_current_user(), existing_contact.name.full_name.text, existing_contact.id.text)
-
-        # Add new users (not already in the group) as contacts
-        for user_to_copy in users_to_copy:
-            if get_ldap_id_json(user_to_copy) not in magic_group_ldaps_set:
-                new_contact = json_to_contact_object(user_to_copy)
-                
-                # Add the relevant groups
-                new_contact.group_membership_info.append(gdata.contacts.data.GroupMembershipInfo(href=magic_group.id.text))
-                if options().my_contacts and my_contacts_group:
-                    new_contact.group_membership_info.append(gdata.contacts.data.GroupMembershipInfo(href=my_contacts_group.id.text))
-                
-                # Set extended properties
-                new_contact.extended_property.append(gdata.data.ExtendedProperty(name=options().contact_id_extended_property_name, value=get_ldap_id_json(user_to_copy)))
-                new_contact.extended_property.append(gdata.data.ExtendedProperty(name=options().contact_source_extended_property_name, value=options().contact_source_extended_property_value))
-
-                logging.debug('%s: Creating contact "%s"',
-                    get_current_user(), new_contact.name.full_name.text)
-                request_feed.add_insert(new_contact)
-                submit_batch()
-        
-        # Sync data for existing contacts that were added by the script and remove those that have been deleted
+    # remove all existing contacts
+    if options().delete_contacts:
+        magic_group_ldaps_set = []
         for existing_contact in magic_group_members:
             if is_script_contact(existing_contact):
-                if get_ldap_id_contact(existing_contact) in user_to_copy_by_ldap_dict:
-                    user_to_copy = user_to_copy_by_ldap_dict[get_ldap_id_contact(existing_contact)]
-                    modified = False
+                existing_contact.extended_property = []
+                contacts_client.delete(existing_contact)
+                logging.info('%s: Removing contact "%s" with ID %s', target_user_email, existing_contact.name.full_name.text, existing_contact.id.text)
 
-                    if options().rename_old and is_renamed_contact(existing_contact):
-                        # Remove renamed flag
-                        remove_suffix(existing_contact)
-                        modified = True
+    # Add new users (not already in the group) as contacts
+    for user_to_copy in users_to_copy:
+        if get_ldap_id_json(user_to_copy) not in magic_group_ldaps_set:
+            new_contact = json_to_contact_object(user_to_copy)
+            
+            # Add the relevant groups
+            new_contact.group_membership_info.append(gdata.contacts.data.GroupMembershipInfo(href=magic_group.id.text))
+            if options().my_contacts and my_contacts_group:
+                new_contact.group_membership_info.append(gdata.contacts.data.GroupMembershipInfo(href=my_contacts_group.id.text))
+            
+            # Set extended properties
+            new_contact.extended_property.append(gdata.data.ExtendedProperty(name=options().contact_id_extended_property_name, value=get_ldap_id_json(user_to_copy)))
+            new_contact.extended_property.append(gdata.data.ExtendedProperty(name=options().contact_source_extended_property_name, value=options().contact_source_extended_property_value))
 
-                    # Sync data
-                    dir_contact = json_to_contact_object(user_to_copy)
-                    modified = sync_contact(dir_contact, existing_contact) or modified
+            logging.debug('%s: Creating contact "%s"',
+                target_user_email, new_contact.name.full_name.text)
+            request_feed.add_insert(new_contact)
+            submit_batch()
+    
+    # Sync data for existing contacts that were added by the script and remove those that have been deleted
+    for existing_contact in magic_group_members:
+        if is_script_contact(existing_contact):
+            if get_ldap_id_contact(existing_contact) in user_to_copy_by_ldap_dict:
+                user_to_copy = user_to_copy_by_ldap_dict[get_ldap_id_contact(existing_contact)]
+                modified = False
 
-                    if modified:
-                        logging.info('%s: Modifying contact "%s" with ID %s',
-                            get_current_user(), existing_contact.name.full_name.text, existing_contact.id.text)
+                if options().rename_old and is_renamed_contact(existing_contact):
+                    # Remove renamed flag
+                    remove_suffix(existing_contact)
+                    modified = True
 
-                        # Batch version (fails in Jul 2014 'Error 403 If-Match or If-None-Match header or entry etag attribute required')
-                        #request_feed.add_update(existing_contact)
-                        #submit_batch()
+                # Sync data
+                dir_contact = json_to_contact_object(user_to_copy)
+                modified = sync_contact(dir_contact, existing_contact) or modified
 
-                        # One-by-one (non-batch) version:
-                        contacts_client.update(existing_contact)
-                else:
-                    # Surplus contact
-                    if options().delete_old:
-                        logging.info('%s: Removing surplus auto-generated contact "%s" with ID %s',
-                            get_current_user(), existing_contact.name.full_name.text, existing_contact.id.text)
-                        contacts_client.delete(existing_contact)
-                    elif options().rename_old and not is_renamed_contact(existing_contact):
-                        old_name = existing_contact.name.full_name.text
-                        add_suffix(existing_contact)
-                        logging.info('%s: Renaming surplus auto-generated contact "%s" to "%s" with ID %s',
-                            get_current_user(), old_name, existing_contact.name.full_name.text, existing_contact.id.text)
+                if modified:
+                    logging.info('%s: Modifying contact "%s" with ID %s',
+                        target_user_email, existing_contact.name.full_name.text, existing_contact.id.text)
 
-                        # Batch version (same as above "Error 403 If-Match or If-None-Match header or entry etag")
-                        #request_feed.add_update(existing_contact)
-                        #submit_batch()
+                    # Batch version (fails in Jul 2014 'Error 403 If-Match or If-None-Match header or entry etag attribute required')
+                    #request_feed.add_update(existing_contact)
+                    #submit_batch()
 
-                        # One-by-one (non-batch) version:
-                        contacts_client.update(existing_contact)
-    except Exception:
-        logging.exception('While processing user ' + target_user_email + ':')
-    finally:
-        # Submit batch queue while still "acting as" this user
-        try:
-            submit_batch_final()
-        except Exception:
-            logging.exception('While submitting final batch for user ' + target_user_email + ':')
+                    # One-by-one (non-batch) version:
+                    contacts_client.update(existing_contact)
+            else:
+                # Surplus contact
+                if options().delete_old:
+                    logging.info('%s: Removing surplus auto-generated contact "%s" with ID %s',
+                        target_user_email, existing_contact.name.full_name.text, existing_contact.id.text)
+                    contacts_client.delete(existing_contact)
+                elif options().rename_old and not is_renamed_contact(existing_contact):
+                    old_name = existing_contact.name.full_name.text
+                    add_suffix(existing_contact)
+                    logging.info('%s: Renaming surplus auto-generated contact "%s" to "%s" with ID %s',
+                        target_user_email, old_name, existing_contact.name.full_name.text, existing_contact.id.text)
+
+                    # Batch version (same as above "Error 403 If-Match or If-None-Match header or entry etag")
+                    #request_feed.add_update(existing_contact)
+                    #submit_batch()
+
+                    # One-by-one (non-batch) version:
+                    contacts_client.update(existing_contact)
 
 #
 # Main routine:
@@ -700,26 +661,15 @@ def main_logging():
     if options().delete_old and options().rename_old:
         sys.exit("Conflicting options detected, aborting")
 
-    # Get opt-out lists
     optout_emails_set = get_optout_set(options().optout_uri)
 
-    # Select domain users by options
-    (users_to_copy, target_user_emails) = select_users()
-    target_user_emails = filter(lambda user_email: user_email.lower() not in optout_emails_set, target_user_emails)
-    user_to_copy_by_ldap_dict = dict(zip([get_ldap_id_json(user_json) for user_json in users_to_copy], users_to_copy))
-
-    if len(users_to_copy) == 0:
-        logging.warn("Zero users to copy, aborting")
-        sys.exit(0)
-
-    if len(target_user_emails) == 0:
-        logging.warn("Zero target users found, aborting")
-        sys.exit(0)
+    users_to_copy, target_user_emails = select_users()
+    target_user_emails = filter(lambda email: email.lower() not in optout_emails_set, target_user_emails)
+    user_to_copy_by_ldap_dict = dict(zip(map(get_ldap_id_json, users_to_copy), users_to_copy))
 
     logging.info('Starting Directory to Contacts Group copy operation. Selection is "%s" (%d user(s)) and target is "%s" (%d user(s))',
         options().select_pattern, len(users_to_copy), options().user_pattern, len(target_user_emails))
 
-    random.shuffle(target_user_emails)
     for target_user_email in target_user_emails:
         process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_dict)
 
