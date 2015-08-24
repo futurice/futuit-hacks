@@ -25,10 +25,6 @@ os.environ.setdefault('PARSER', 'gapps_calendar_resources_to_contacts_group_copi
 os.environ.setdefault('ROOTDIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), ''))
 from shared.options import options
 
-def exhaust(resource):
-    # TODO: paginate to get all results
-    return resource
-
 def resources_to_contacts():
     # Get Calendar Resources
     calendars = calendar_resource(options=options()).get_resource_feed(uri=options().calendar_resource_feed).entry

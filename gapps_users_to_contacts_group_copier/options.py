@@ -15,7 +15,7 @@ def parse_options():
         dest="phone",
         action="store_false",
         default=True,
-        help="copy also those users who do NOT have a phone number set (default: only copy users who have a phone number set)")
+        help="copy users who do NOT have a phone number set")
 
     parser.add_argument(
         "-U", "--user-pattern",

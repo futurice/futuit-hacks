@@ -23,13 +23,13 @@ import json
 import urllib
 
 from shared.futurice import get_optout_set
+from shared.google_apis import contacts, admin, submit_batch, patched_batch, exhaust
 
 # Set of those Contact field relation values that are overwritten by the script
 SYNC_ORG_RELS = set([WORK_REL, MOBILE_REL])
 # Set of those Contact field label values that are overwritten by the script
 SYNC_ORG_LABELS = set(["Employee ID"])
 
-DIRECTORY_URI = "https://www.googleapis.com/admin/directory/v1/users?"
 DEFAULT_REL = WORK_REL
 
 os.environ.setdefault('PARSER', 'gapps_users_to_contacts_group_copier.options')
@@ -61,31 +61,22 @@ def get_ldap_id_contact(contact):
 def select_users():
     users_to_copy = []
     target_user_emails = []
-    
-    next_page = None
-    while True:
-        uri_params = {
-            "domain": options().domain,
-            "maxResults": 500
-        }
-        if next_page is not None: uri_params['pageToken'] = next_page
 
-        response = json.load(apps_client.request("GET", DIRECTORY_URI + urllib.urlencode(uri_params)))
+    def grab(user):
+        if fnmatch(user[u'primaryEmail'], options().user_pattern):
+            target_user_emails.append(user[u'primaryEmail'])
+        if fnmatch(user[u'primaryEmail'], options().select_pattern) and \
+            (not options().phone or ( \
+                u'phones' in user and \
+                any([ u'value' in phone and phone[u'value'] for phone in user[u'phones'] ]) ) \
+            ) and get_ldap_id_json(user):
+            users_to_copy.append(user)
 
-        if u'users' in response:
-            for user in response[u'users']:
-                if u'primaryEmail' in user:
-                    if fnmatch(user[u'primaryEmail'], options().user_pattern):
-                        target_user_emails.append(user[u'primaryEmail'])
-                    if fnmatch(user[u'primaryEmail'], options().select_pattern) and \
-                        (not options().phone or ( \
-                            u'phones' in user and \
-                            any([ u'value' in phone and phone[u'value'] for phone in user[u'phones'] ]) ) \
-                        ) and get_ldap_id_json(user):
-                        users_to_copy.append(user)
-
-        if u'nextPageToken' in response: next_page = response[u'nextPageToken']
-        else: break
+    users = exhaust(
+        admin(options=options()).users().list,
+        dict(domain=options().domain, maxResults=500),
+        'users')
+    filter(grab, users)
 
     return (users_to_copy, target_user_emails)
 

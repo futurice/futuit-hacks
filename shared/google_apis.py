@@ -131,3 +131,14 @@ def patched_post(client, entry, uri, auth_token=None, converter=None, desired_cl
 def patched_batch(client_instance, entry_feed):
     return patched_post(client_instance, entry_feed, 'https://www.google.com/m8/feeds/contacts/default/full/batch')
 
+def exhaust(query, params, key):
+    results = []
+    while True:
+        result = query(**params).execute()
+        results += result.get(key)
+        if 'nextPageToken' in result:
+            params['pageToken'] = result['nextPageToken']
+        else:
+            break
+    return results
+
