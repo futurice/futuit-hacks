@@ -16,7 +16,7 @@ from operator import attrgetter as get, itemgetter as iget
 
 DEFAULT_REL = WORK_REL
 
-from shared.google_apis import calendar_resource, contacts, admin, submit_batch, patched_batch
+from shared.google_apis import calendar_resource, contacts, admin, submit_batch, patched_batch, exhaust
 from shared.dots import compare_object_values, err, dotset, dotget
 from shared.fn import flatmap, filtermap
 from shared.futurice import get_optout_set
@@ -35,8 +35,7 @@ def resources_to_contacts():
     filtered_calendar_by_email_dict = dict(zip(map(get('resource_email'), filtered_calendars), filtered_calendars))
 
     # Fetch all domain users
-    all_users = admin(options=options()).users().list(domain=options().domain, maxResults=500).execute()
-    all_users = all_users.get('users', [])
+    all_users = exhaust(admin(options=options()).users().list, dict(domain=options().domain, maxResults=500), 'users')
 
     # Get opt-out lists
     # TODO: opt-out data should NOT be used (stale emails); move service to FUM
