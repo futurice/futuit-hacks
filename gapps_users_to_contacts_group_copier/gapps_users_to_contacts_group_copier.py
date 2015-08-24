@@ -4,8 +4,10 @@
 __author__ = "vsin"
 __version__ = "1.0.0"
 
+from atom.data import (Title)
+from gdata.data import WORK_REL, MOBILE_REL
+import gdata.data
 import gdata.apps.client
-import atom.data
 import gdata.contacts.data
 import gdata.contacts.client
 
@@ -15,8 +17,6 @@ import os.path
 import os
 import logging
 import logging.config
-import ConfigParser
-import optparse
 import random
 from fnmatch import fnmatch
 import json
@@ -24,60 +24,17 @@ import urllib
 
 from shared.futurice import get_optout_set
 
-options = None
-config = None
-
 # Set of those Contact field relation values that are overwritten by the script
-SYNC_ORG_RELS = set([gdata.data.WORK_REL, gdata.data.MOBILE_REL])
+SYNC_ORG_RELS = set([WORK_REL, MOBILE_REL])
 # Set of those Contact field label values that are overwritten by the script
 SYNC_ORG_LABELS = set(["Employee ID"])
 
-APP_CONFIG_SECTION = "application"
-PARAM_CONFIG_SECTION = "default_params"
 DIRECTORY_URI = "https://www.googleapis.com/admin/directory/v1/users?"
-DOMAIN = None
-DEFAULT_REL = gdata.data.WORK_REL
-DEFAULT_EXTERNAL_ID_REL = u'organization'
-EXTPROP_CONTACT_ID_NAME = None
-EXTPROP_CONTACT_SOURCE_NAME = None
-EXTPROP_CONTACT_SOURCE_VALUE = None
-EXTPROP_CONTACT_RENAMED_NAME = None
-EXTPROP_CONTACT_RENAMED_VALUE = None
-EXTPROP_GROUP_NAME = None
-EXTPROP_GROUP_VALUE = None
-MY_CONTACTS_ID = "Contacts"
+DEFAULT_REL = WORK_REL
 
-contacts_client = None
-apps_client = None
-domain_token = None
-request_feed = None
-
-def read_config():
-    global config, DOMAIN, DEFAULT_REL, EXTPROP_CONTACT_ID_NAME, \
-        EXTPROP_CONTACT_SOURCE_NAME, EXTPROP_CONTACT_SOURCE_VALUE, \
-        EXTPROP_CONTACT_RENAMED_NAME, EXTPROP_CONTACT_RENAMED_VALUE, \
-        EXTPROP_GROUP_NAME, EXTPROP_GROUP_VALUE
-
-    config = ConfigParser.RawConfigParser()
-    config.read(options().config)
-
-    # Set default params
-    if config.has_section(PARAM_CONFIG_SECTION):
-        for param in config.options(PARAM_CONFIG_SECTION):
-            if not hasattr(options, param) or getattr(options, param) is None:
-                setattr(options, param, config.get(PARAM_CONFIG_SECTION, param))
-
-    DOMAIN = config.get(APP_CONFIG_SECTION, "domain")
-    if config.has_option(APP_CONFIG_SECTION, "default_rel"):
-        DEFAULT_REL = config.get(APP_CONFIG_SECTION, "default_rel")
-
-    EXTPROP_CONTACT_ID_NAME = config.get(APP_CONFIG_SECTION, "contact_id_extended_property_name")
-    EXTPROP_CONTACT_SOURCE_NAME = config.get(APP_CONFIG_SECTION, "contact_source_extended_property_name")
-    EXTPROP_CONTACT_SOURCE_VALUE = config.get(APP_CONFIG_SECTION, "contact_source_extended_property_value")
-    EXTPROP_CONTACT_RENAMED_NAME = config.get(APP_CONFIG_SECTION, "contact_renamed_extended_property_name")
-    EXTPROP_CONTACT_RENAMED_VALUE = config.get(APP_CONFIG_SECTION, "contact_renamed_extended_property_value")
-    EXTPROP_GROUP_NAME = config.get(APP_CONFIG_SECTION, "group_extended_property_name")
-    EXTPROP_GROUP_VALUE = config.get(APP_CONFIG_SECTION, "group_extended_property_value")
+os.environ.setdefault('PARSER', 'gapps_users_to_contacts_group_copier.options')
+os.environ.setdefault('ROOTDIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), ''))
+from shared.options import options
 
 def get_ldap_id_json(json_user):
     def b64dec(s):
@@ -96,20 +53,19 @@ def get_ldap_id_json(json_user):
     return None
 
 def get_ldap_id_contact(contact):
-    ldapIds = [ extprop.value for extprop in contact.extended_property if extprop.name == EXTPROP_CONTACT_ID_NAME ]
+    ldapIds = [ extprop.value for extprop in contact.extended_property if extprop.name == options().contact_id_extended_property_name ]
     if ldapIds:
         return ldapIds[0]
     return None
 
 def select_users():
-    """Select users by set options()."""
     users_to_copy = []
     target_user_emails = []
     
     next_page = None
     while True:
         uri_params = {
-            "domain": DOMAIN,
+            "domain": options().domain,
             "maxResults": 500
         }
         if next_page is not None: uri_params['pageToken'] = next_page
@@ -148,29 +104,29 @@ def get_magic_group(groups, create=True):
     # No group found, create
     logging.info('%s: No domain contact group found, creating..', get_current_user())
     new_group = gdata.contacts.data.GroupEntry()
-    new_group.title = atom.data.Title(options().group)
+    new_group.title = Title(options().group)
 
     # Set extended property
     extprop = gdata.data.ExtendedProperty()
-    extprop.name = EXTPROP_GROUP_NAME
-    extprop.value = EXTPROP_GROUP_VALUE
+    extprop.name = options().group_extended_property_name
+    extprop.value = options().group_extended_property_value
     new_group.extended_property.append(extprop)
 
     return (contacts_client.CreateGroup(new_group=new_group), [])
 
 # Return if contact was added by the script
 is_script_contact = lambda contact: len(filter(
-    lambda extprop: extprop.name == EXTPROP_CONTACT_SOURCE_NAME and extprop.value == EXTPROP_CONTACT_SOURCE_VALUE,
+    lambda extprop: extprop.name == options().contact_source_extended_property_name and extprop.value == options().contact_source_extended_property_value,
     contact.extended_property)) > 0
 
 # Return if contact was renamed by the script
 is_renamed_contact = lambda contact: len(filter(
-    lambda extprop: extprop.name == EXTPROP_CONTACT_RENAMED_NAME and extprop.value == EXTPROP_CONTACT_RENAMED_VALUE,
+    lambda extprop: extprop.name == options().contact_renamed_extended_property_name and extprop.value == options().contact_renamed_extended_property_value,
     contact.extended_property)) > 0
     
 # Return if contact group was added by the script
 is_script_group = lambda group: len(filter(
-    lambda extprop: extprop.name == EXTPROP_GROUP_NAME and extprop.value == EXTPROP_GROUP_VALUE,
+    lambda extprop: extprop.name == options().group_extended_property_name and extprop.value == options().group_extended_property_value,
     group.extended_property)) > 0
 
 # Rename contact with "deleted" suffix
@@ -183,15 +139,15 @@ def add_suffix(contact):
 
     # Add ext prop to signal that this contact has been renamed by the script
     extprop = gdata.data.ExtendedProperty()
-    extprop.name = EXTPROP_CONTACT_RENAMED_NAME
-    extprop.value = EXTPROP_CONTACT_RENAMED_VALUE
+    extprop.name = options().contact_renamed_extended_property_name
+    extprop.value = options().contact_renamed_extended_property_value
     contact.extended_property.append(extprop)
 
 # Re-rename contact to remove "deleted" suffix
 def remove_suffix(contact):
     contact.name.name_suffix = None
     contact.name.full_name = gdata.data.FullName(contact.name.given_name.text + " " + contact.name.family_name.text)
-    contact.extended_property = [ extprop for extprop in contact.extended_property if extprop.name != EXTPROP_CONTACT_RENAMED_NAME ]
+    contact.extended_property = [ extprop for extprop in contact.extended_property if extprop.name != options().contact_renamed_extended_property_name ]
 
 #
 # JSON converters:
@@ -208,7 +164,6 @@ type_to_rel_mapper = {
     u'work_mobile': gdata.data.WORK_MOBILE_REL,
     u'pager': gdata.data.PAGER_REL,
     u'work_pager': gdata.data.WORK_PAGER_REL,
-    u'compain_main': gdata.data.COMPANY_MAIN_REL, # Typo in documentation?
     u'company_main': gdata.data.COMPANY_MAIN_REL, 
     u'assistant': gdata.data.ASSISTANT_REL,
     u'car': gdata.data.CAR_REL,
@@ -216,8 +171,7 @@ type_to_rel_mapper = {
     u'isdn': gdata.data.ISDN_REL,
     u'callback': gdata.data.CALLBACK_REL,
     u'telex': gdata.data.TELEX_REL,
-    u'tty_tdd': gdata.data.TTL_TDD_REL,
-    u'ttl_tdd': gdata.data.TTL_TDD_REL, # Another typo?
+    u'ttl_tdd': gdata.data.TTL_TDD_REL,
     u'main': gdata.data.MAIN_REL
 }
 
@@ -274,9 +228,9 @@ def json_to_external_id_object(json):
         if json[u'type'] == u'custom':
             if u'customType' in json and json[u'customType']:
                 ext_id_object.label = json[u'customType']
-            else: ext_id_object.rel = DEFAULT_EXTERNAL_ID_REL
+            else: ext_id_object.rel = options().default_external_id_rel
         else: ext_id_object.rel = json[u'type']
-    else: ext_id_object.rel = DEFAULT_EXTERNAL_ID_REL
+    else: ext_id_object.rel = options().default_external_id_rel
 
     return ext_id_object
 
@@ -657,7 +611,7 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
         magic_group_ldaps_set = filter(None, [ get_ldap_id_contact(contact) for contact in magic_group_members ])
 
         # Find My Contacts group
-        my_contacts_group = filter(lambda group: group.system_group and group.system_group.id == MY_CONTACTS_ID, groups)
+        my_contacts_group = filter(lambda group: group.system_group and group.system_group.id == options().my_contacts_id, groups)
         if my_contacts_group: my_contacts_group = my_contacts_group[0]
 
         logging.info('%s: Using group called "%s" with %d members and ID %s',
@@ -684,8 +638,8 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
                     new_contact.group_membership_info.append(gdata.contacts.data.GroupMembershipInfo(href=my_contacts_group.id.text))
                 
                 # Set extended properties
-                new_contact.extended_property.append(gdata.data.ExtendedProperty(name=EXTPROP_CONTACT_ID_NAME, value=get_ldap_id_json(user_to_copy)))
-                new_contact.extended_property.append(gdata.data.ExtendedProperty(name=EXTPROP_CONTACT_SOURCE_NAME, value=EXTPROP_CONTACT_SOURCE_VALUE))
+                new_contact.extended_property.append(gdata.data.ExtendedProperty(name=options().contact_id_extended_property_name, value=get_ldap_id_json(user_to_copy)))
+                new_contact.extended_property.append(gdata.data.ExtendedProperty(name=options().contact_source_extended_property_name, value=options().contact_source_extended_property_value))
 
                 logging.debug('%s: Creating contact "%s"',
                     get_current_user(), new_contact.name.full_name.text)
