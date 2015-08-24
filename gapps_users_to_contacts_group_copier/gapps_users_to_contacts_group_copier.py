@@ -36,21 +36,19 @@ os.environ.setdefault('PARSER', 'gapps_users_to_contacts_group_copier.options')
 os.environ.setdefault('ROOTDIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), ''))
 from shared.options import options
 
-def get_ldap_id_json(json_user):
-    def b64dec(s):
-        """Decode a base64-encoded string which doesn't have padding"""
-        extra = len(s) % 4
-        if extra:
-            s += (4 - extra) * '='
-        return base64.b64decode(s)
+def b64dec(s):
+    """Decode a base64-encoded string which doesn't have padding"""
+    extra = len(s) % 4
+    if extra:
+        s += (4 - extra) * '='
+    return base64.b64decode(s)
 
-    if u'externalIds' in json_user:
-        extObjs = [x for x in json_user['externalIds']
-                if 'type' in x and x['type'] == 'organization']
-        b64LdapIds = [x['value'] for x in extObjs if 'value' in x]
-        if b64LdapIds:
-            return b64dec(b64LdapIds[0])
-    return None
+def get_ldap_id_json(user):
+    """
+    GADS syncs EmployeeID under externalIds: [{type: organization, value: base64encoded(EmployeeID)}]
+    """
+    return reduce(lambda x,y: b64dec(x['value']) if x['type']=='organization' else None,
+            user.get('externalIds', []))
 
 def get_ldap_id_contact(contact):
     ldapIds = [ extprop.value for extprop in contact.extended_property if extprop.name == options().contact_id_extended_property_name ]
@@ -65,6 +63,7 @@ def select_users():
     def grab(user):
         if fnmatch(user[u'primaryEmail'], options().user_pattern):
             target_user_emails.append(user[u'primaryEmail'])
+
         if fnmatch(user[u'primaryEmail'], options().select_pattern) and \
             (not options().phone or ( \
                 u'phones' in user and \
