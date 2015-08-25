@@ -92,7 +92,8 @@ def select_users():
 def add_suffix(contact):
     if contact.name.name_suffix and contact.name.name_suffix.text:
         old_suffix = contact.name.name_suffix.text + " "
-    else: old_suffix = ""
+    else:
+        old_suffix = ""
     contact.name.name_suffix = gdata.data.NameSuffix(old_suffix + options().rename_suffix)
     contact.name.full_name = gdata.data.FullName(contact.name.full_name.text + " " + options().rename_suffix)
 
