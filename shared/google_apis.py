@@ -101,7 +101,9 @@ def admin(email=None, options=None):
 def submit_batch(contacts_client, feed, force=False, batch_max=100):
     if not force and len(feed.entry) < int(batch_max):
         return # Wait for more requests
+    submit_feed(contacts_client, feed)
 
+def submit_feed(contacts_client, feed):
     result_feed = patched_batch(contacts_client, feed)
     for result in result_feed.entry:
         try: status_code = int(result.batch_status.code)
@@ -130,6 +132,26 @@ def patched_post(client, entry, uri, auth_token=None, converter=None, desired_cl
 
 def patched_batch(client_instance, entry_feed):
     return patched_post(client_instance, entry_feed, 'https://www.google.com/m8/feeds/contacts/default/full/batch')
+
+class Batch(object):
+    def __init__(self, client, cls, batch_max=100):
+        self.client = client
+        self.cls = cls
+        self.feed = cls()
+        self.batch_max = batch_max
+    def reset(self):
+        self.feed = self.cls()
+    def put(self, name, data):
+        getattr(self.feed, name)(entry=data)
+        if self.total()>self.batch_max:
+            self.submit()
+    def total(self):
+        return len(self.feed.entry)
+    def submit(self):
+        submit_feed(self.client, self.feed)
+        self.reset()
+    def close(self):
+        self.submit()
 
 def exhaust(query, params, key):
     results = []

@@ -22,10 +22,11 @@ from fnmatch import fnmatch
 import json
 import urllib
 from operator import attrgetter as get, itemgetter as iget
+from contextlib import closing
 
 from shared.futurice import get_optout_set
-from shared.google_apis import contacts, admin, submit_batch, patched_batch, exhaust
-from shared.implementation import get_magic_group, get_group_members, create_magic_group, is_script_contact, is_script_group
+from shared.google_apis import contacts, admin, exhaust, Batch
+from shared.implementation import get_magic_group, get_group_members, create_magic_group, is_script_contact, is_script_group, undo
 
 # Set of those Contact field relation values that are overwritten by the script
 SYNC_ORG_RELS = set([WORK_REL, MOBILE_REL])
@@ -467,50 +468,6 @@ def sync_contact(source, target):
             target.im.extend(source_sync_ims)
 
     return modified
-    
-def undo(target_user):
-    # Let's delete users by global list and group list on the off chance the global list
-    # is not comprehensive due to its size exceeding query limits.
-    removed_ids = set()
-
-    # without this query, get_contacts() only returns a few contacts
-    contacts_query = gdata.contacts.client.ContactsQuery()
-    contacts_query.max_results = config.getint(APP_CONFIG_SECTION, "max_contacts")
-    contacts = contacts_client.get_contacts(q=contacts_query).entry
-    for contact in contacts:
-        if is_script_contact(contact):
-            logging.info('%s: Removing auto-generated contact "%s" with ID %s',
-                get_current_user(), contact.name.full_name.text, contact.id.text)
-            removed_ids.add(contact.id.text)
-
-            # Batch version (fails in July 2014 'Error 403 If-Match or If-None-Match header or entry etag attribute required')
-            #request_feed.add_delete(entry=contact)
-            #submit_batch()
-
-            # One-by-one (non-batch) version:
-            contacts_client.delete(contact)
-
-    # Get users' groups
-    groups = contacts_client.get_groups().entry
-
-    # Find group by extended property
-    (magic_group, magic_group_members) = get_magic_group(groups, create=False)
-    if magic_group is not None:
-        for group_member in magic_group_members:
-            if group_member.id.text not in removed_ids and is_script_contact(group_member):
-                logging.info('%s: Removing auto-generated contact "%s" with ID %s',
-                    get_current_user(), group_member.name.full_name.text, group_member.id.text)
-                # Batch version (fails in July 2014 'Error 403 If-Match or If-None-Match header or entry etag attribute required')
-                #request_feed.add_delete(entry=group_member)
-                #submit_batch()
-
-                # One-by-one (non-batch) version:
-                contacts_client.delete(group_member)
-
-        # Remove group
-        contacts_client.delete_group(magic_group)
-        logging.info('%s: Removing auto-generated group "%s" with ID %s',
-            get_current_user(), magic_group.title.text, magic_group.id.text)
 
 def get_value_by_contact_email(email_dict, contact):
     """Resolve contact object to email key in email_dict and return the first matching value."""
@@ -580,34 +537,34 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
     # remove all existing contacts
     if options().delete_contacts:
         magic_group_ldaps_set = []
-        for existing_contact in magic_group_members:
-            if is_script_contact(existing_contact):
+        with closing(Batch(contacts_client, ContactsFeed)) as batch:
+            for existing_contact in filter(is_script_contact, magic_group_members):
                 existing_contact.extended_property = []
-                contacts_client.delete(existing_contact)
                 logging.info('%s: Removing contact "%s" with ID %s', target_user_email, existing_contact.name.full_name.text, existing_contact.id.text)
+                batch.put('add_delete', existing_contact)
 
     # Add new users (not already in the group) as contacts
-    for user_to_copy in users_to_copy:
-        if get_ldap_id_json(user_to_copy) not in magic_group_ldaps_set:
-            new_contact = json_to_contact_object(user_to_copy)
-            
-            # Add the relevant groups
-            new_contact.group_membership_info.append(gdata.contacts.data.GroupMembershipInfo(href=magic_group.id.text))
-            if options().my_contacts and my_contacts_group:
-                new_contact.group_membership_info.append(gdata.contacts.data.GroupMembershipInfo(href=my_contacts_group.id.text))
-            
-            # Set extended properties
-            new_contact.extended_property.append(gdata.data.ExtendedProperty(name=options().contact_id_extended_property_name, value=get_ldap_id_json(user_to_copy)))
-            new_contact.extended_property.append(gdata.data.ExtendedProperty(name=options().contact_source_extended_property_name, value=options().contact_source_extended_property_value))
+    with closing(Batch(contacts_client, ContactsFeed)) as batch:
+        for user_to_copy in users_to_copy:
+            if get_ldap_id_json(user_to_copy) not in magic_group_ldaps_set:
+                new_contact = json_to_contact_object(user_to_copy)
+                
+                # Add the relevant groups
+                new_contact.group_membership_info.append(gdata.contacts.data.GroupMembershipInfo(href=magic_group.id.text))
+                if options().my_contacts and my_contacts_group:
+                    new_contact.group_membership_info.append(gdata.contacts.data.GroupMembershipInfo(href=my_contacts_group.id.text))
+                
+                # Set extended properties
+                new_contact.extended_property.append(gdata.data.ExtendedProperty(name=options().contact_id_extended_property_name, value=get_ldap_id_json(user_to_copy)))
+                new_contact.extended_property.append(gdata.data.ExtendedProperty(name=options().contact_source_extended_property_name, value=options().contact_source_extended_property_value))
 
-            logging.debug('%s: Creating contact "%s"',
-                target_user_email, new_contact.name.full_name.text)
-            request_feed.add_insert(new_contact)
-            submit_batch()
+                logging.debug('%s: Creating contact "%s"',
+                    target_user_email, new_contact.name.full_name.text)
+                batch.put('add_insert', new_contact)
     
     # Sync data for existing contacts that were added by the script and remove those that have been deleted
-    for existing_contact in magic_group_members:
-        if is_script_contact(existing_contact):
+    with closing(Batch(contacts_client, ContactsFeed)) as batch:
+        for existing_contact in filter(is_script_contact, magic_group_members):
             if get_ldap_id_contact(existing_contact) in user_to_copy_by_ldap_dict:
                 user_to_copy = user_to_copy_by_ldap_dict[get_ldap_id_contact(existing_contact)]
                 modified = False
@@ -624,31 +581,19 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
                 if modified:
                     logging.info('%s: Modifying contact "%s" with ID %s',
                         target_user_email, existing_contact.name.full_name.text, existing_contact.id.text)
-
-                    # Batch version (fails in Jul 2014 'Error 403 If-Match or If-None-Match header or entry etag attribute required')
-                    #request_feed.add_update(existing_contact)
-                    #submit_batch()
-
-                    # One-by-one (non-batch) version:
-                    contacts_client.update(existing_contact)
+                    batch.put('add_update', existing_contact)
             else:
                 # Surplus contact
                 if options().delete_old:
                     logging.info('%s: Removing surplus auto-generated contact "%s" with ID %s',
                         target_user_email, existing_contact.name.full_name.text, existing_contact.id.text)
-                    contacts_client.delete(existing_contact)
+                    batch.put('add_delete', existing_contact)
                 elif options().rename_old and not is_renamed_contact(existing_contact):
                     old_name = existing_contact.name.full_name.text
                     add_suffix(existing_contact)
                     logging.info('%s: Renaming surplus auto-generated contact "%s" to "%s" with ID %s',
                         target_user_email, old_name, existing_contact.name.full_name.text, existing_contact.id.text)
-
-                    # Batch version (same as above "Error 403 If-Match or If-None-Match header or entry etag")
-                    #request_feed.add_update(existing_contact)
-                    #submit_batch()
-
-                    # One-by-one (non-batch) version:
-                    contacts_client.update(existing_contact)
+                    batch.put('add_update', existing_contact)
 
 #
 # Main routine:
