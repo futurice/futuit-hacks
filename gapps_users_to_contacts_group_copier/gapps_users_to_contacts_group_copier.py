@@ -517,7 +517,7 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
     # Find group by extended property
     magic_group = get_magic_group(users_groups) or create_magic_group(contacts_client)
     magic_group_members = get_group_members(contacts_client, magic_group)
-    magic_group_ldaps_set = filter(None, [ get_ldap_id_contact(contact) for contact in magic_group_members ])
+    magic_group_ldaps_set = lambda: filter(None, [ get_ldap_id_contact(contact) for contact in magic_group_members ])
 
     # Find "My Contacts" group in Contacts
     my_contacts_group = next(iter(
@@ -529,17 +529,15 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
 
     # remove all existing contacts
     if options().delete_contacts:
-        magic_group_ldaps_set = []
         with closing(Batch(contacts_client, ContactsFeed)) as batch:
             for existing_contact in filter(is_script_contact, magic_group_members):
-                existing_contact.extended_property = []
                 logging.info('%s: Removing contact "%s" with ID %s', target_user_email, existing_contact.name.full_name.text, existing_contact.id.text)
                 batch.put('add_delete', existing_contact)
 
     # Add new users (not already in the group) as contacts
     with closing(Batch(contacts_client, ContactsFeed)) as batch:
         for user_to_copy in users_to_copy:
-            if get_ldap_id_json(user_to_copy) not in magic_group_ldaps_set:
+            if get_ldap_id_json(user_to_copy) not in magic_group_ldaps_set():
                 new_contact = json_to_contact_object(user_to_copy)
                 
                 # Add the relevant groups
@@ -576,7 +574,6 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
                         target_user_email, existing_contact.name.full_name.text, existing_contact.id.text)
                     batch.put('add_update', existing_contact)
             else:
-                # Surplus contact
                 if options().delete_old:
                     logging.info('%s: Removing surplus auto-generated contact "%s" with ID %s',
                         target_user_email, existing_contact.name.full_name.text, existing_contact.id.text)

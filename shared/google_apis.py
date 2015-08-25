@@ -144,7 +144,7 @@ class Batch(object):
         self.feed = self.cls()
     def put(self, name, data):
         getattr(self.feed, name)(entry=data)
-        if self.total()>self.batch_max:
+        if self.total()>=self.batch_max:
             self.submit()
     def total(self):
         return len(self.feed.entry)
