@@ -4,6 +4,7 @@ import sys
 from apiclient.discovery import build
 from oauth2client.client import SignedJwtAssertionCredentials
 
+import logging
 import gdata.client
 import atom.http_core
 from gdata.contacts.client import ContactsClient

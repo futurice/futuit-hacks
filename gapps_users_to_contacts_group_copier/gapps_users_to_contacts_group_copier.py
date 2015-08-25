@@ -5,11 +5,12 @@ __author__ = "vsin"
 __version__ = "1.0.0"
 
 from atom.data import (Title)
-from gdata.data import WORK_REL, MOBILE_REL
+from gdata.data import (WORK_REL, MOBILE_REL, ExtendedProperty)
 import gdata.data
 import gdata.apps.client
 import gdata.contacts.data
 import gdata.contacts.client
+from gdata.contacts.data import (ContactsFeed, GroupMembershipInfo, ContactEntry)
 
 import base64
 import sys
@@ -26,7 +27,9 @@ from contextlib import closing
 
 from shared.futurice import get_optout_set
 from shared.google_apis import contacts, admin, exhaust, Batch
-from shared.implementation import get_magic_group, get_group_members, create_magic_group, is_script_contact, is_script_group, undo
+from shared.implementation import (get_magic_group, get_group_members,
+        create_magic_group, is_script_contact, is_script_group, undo,
+        is_renamed_contact,)
 
 # Set of those Contact field relation values that are overwritten by the script
 SYNC_ORG_RELS = set([WORK_REL, MOBILE_REL])
@@ -38,6 +41,8 @@ DEFAULT_REL = WORK_REL
 os.environ.setdefault('PARSER', 'gapps_users_to_contacts_group_copier.options')
 os.environ.setdefault('ROOTDIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), ''))
 from shared.options import options
+
+is_sync_field = lambda obj: obj.rel in SYNC_ORG_RELS or obj.label in SYNC_ORG_LABELS
 
 def b64dec(s):
     """Decode a base64-encoded string which doesn't have padding"""
@@ -83,16 +88,6 @@ def select_users():
 
     return (users_to_copy, target_user_emails)
 
-# Return if contact was added by the script
-is_script_contact = lambda contact: len(filter(
-    lambda extprop: extprop.name == options().contact_source_extended_property_name and extprop.value == options().contact_source_extended_property_value,
-    contact.extended_property)) > 0
-
-# Return if contact was renamed by the script
-is_renamed_contact = lambda contact: len(filter(
-    lambda extprop: extprop.name == options().contact_renamed_extended_property_name and extprop.value == options().contact_renamed_extended_property_value,
-    contact.extended_property)) > 0
-
 # Rename contact with "deleted" suffix
 def add_suffix(contact):
     if contact.name.name_suffix and contact.name.name_suffix.text:
@@ -102,7 +97,7 @@ def add_suffix(contact):
     contact.name.full_name = gdata.data.FullName(contact.name.full_name.text + " " + options().rename_suffix)
 
     # Add ext prop to signal that this contact has been renamed by the script
-    extprop = gdata.data.ExtendedProperty()
+    extprop = ExtendedProperty()
     extprop.name = options().contact_renamed_extended_property_name
     extprop.value = options().contact_renamed_extended_property_value
     contact.extended_property.append(extprop)
@@ -235,7 +230,7 @@ def json_to_im_object(json):
     return im_object
 
 def json_to_contact_object(json):
-    new_contact = gdata.contacts.data.ContactEntry()
+    new_contact = ContactEntry()
 
     # Set the contact name
     new_contact.name = gdata.data.Name(
@@ -308,8 +303,6 @@ def json_to_contact_object(json):
                 new_contact.im.append(json_to_im_object(json_im))
                 
     return new_contact
-
-is_sync_field = lambda obj: obj.rel in SYNC_ORG_RELS or obj.label in SYNC_ORG_LABELS
 
 def sync_contact(source, target):
     """Copies data from source contact to target contact and returns True if target was modified."""
@@ -516,7 +509,7 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
     contacts_client = contacts(email=target_user_email, options=options())
 
     if options().undo:
-        undo(target_user_email)
+        undo(contacts_client, target_user_email, ContactsFeed)
         return
     
     users_groups = contacts_client.get_groups().entry
@@ -550,13 +543,13 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
                 new_contact = json_to_contact_object(user_to_copy)
                 
                 # Add the relevant groups
-                new_contact.group_membership_info.append(gdata.contacts.data.GroupMembershipInfo(href=magic_group.id.text))
+                new_contact.group_membership_info.append(GroupMembershipInfo(href=magic_group.id.text))
                 if options().my_contacts and my_contacts_group:
-                    new_contact.group_membership_info.append(gdata.contacts.data.GroupMembershipInfo(href=my_contacts_group.id.text))
+                    new_contact.group_membership_info.append(GroupMembershipInfo(href=my_contacts_group.id.text))
                 
                 # Set extended properties
-                new_contact.extended_property.append(gdata.data.ExtendedProperty(name=options().contact_id_extended_property_name, value=get_ldap_id_json(user_to_copy)))
-                new_contact.extended_property.append(gdata.data.ExtendedProperty(name=options().contact_source_extended_property_name, value=options().contact_source_extended_property_value))
+                new_contact.extended_property.append(ExtendedProperty(name=options().contact_id_extended_property_name, value=get_ldap_id_json(user_to_copy)))
+                new_contact.extended_property.append(ExtendedProperty(name=options().contact_extended_property_name, value=options().contact_extended_property_value))
 
                 logging.debug('%s: Creating contact "%s"',
                     target_user_email, new_contact.name.full_name.text)

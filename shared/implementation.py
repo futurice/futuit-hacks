@@ -45,6 +45,12 @@ def is_script_group(group):
                 and prop.value == options().group_extended_property_value,
         group.extended_property))
 
+def is_renamed_contact(contact):
+    return any(filter(
+        lambda prop: prop.name == options().contact_renamed_extended_property_name \
+                and prop.value == options().contact_renamed_extended_property_value,
+        contact.extended_property))
+
 def undo(contacts_client, target_user, feed):
     # Let's delete users by global list and group list on the off chance the global list
     # is not comprehensive due to its size exceeding query limits.
