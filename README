@@ -9,7 +9,7 @@ Parameters configured in config.conf in respective script directories. Some CLI 
 
 Configure Access to Google Services:
 
-1) Create a project in https://console.developers.google.com/:
+* Create a project in https://console.developers.google.com/:
 APIs & auth
  APIs
   Calendar
@@ -28,7 +28,7 @@ APIs & auth
    Service Account
     - Generate new P12 key, save as 'service.p12' in used script directories
 
-2) Add permissions in https://admin.google.com/:
+* Add permissions in https://admin.google.com/:
 Security
  Advanced Settings
   Manage API client access
@@ -36,10 +36,10 @@ Security
     Client Name: Service Account Email address
     Scopes: https://www.google.com/m8/feeds,https://www.googleapis.com/auth/admin.directory.group,https://www.googleapis.com/auth/admin.directory.user
 
-3) Copy config.conf.template -> config.conf
+* Copy config.conf.template -> config.conf
 - service_account_email = <Service Account Email>
 
-3) On first use, authenticate the script against the developer account email.
+* On first use, authenticate the script against the developer account email to enable further offline use.
 
 Copies select domain users as contacts under a set group for selected organization's members.
 $ python -m gapps_users_to_contacts_group_copier.gapps_users_to_contacts_group_copier -U '*@company.com' -P -M -R
