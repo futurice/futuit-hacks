@@ -81,7 +81,7 @@ def calendar_resource(email=None, options=None):
             credentials=get_credentials(scopes=['https://apps-apis.google.com/a/feeds/calendar/resource/',],
                 email=email,
                 options=options,
-                storage_file='gdata_credential_file'))
+                storage_file='gdata_credentials_file'))
 
 def contacts(email=None, options=None):
     return get_gdata_api(name='contacts',
@@ -89,7 +89,7 @@ def contacts(email=None, options=None):
             credentials=get_credentials(scopes=['https://www.google.com/m8/feeds',],
                 email=email,
                 options=options,
-                storage_file='gdata_credential_file'))
+                storage_file='gdata_credentials_file'))
 
 def admin(email=None, options=None):
     return get_discovery_api(name='admin',

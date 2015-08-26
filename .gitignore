@@ -1,2 +1,7 @@
 *.pyc
 *.log
+client_secrets.json
+service.p12
+a_credentials_file
+gdata_credentials_file
+tags
