@@ -36,6 +36,9 @@ Security
     Client Name: Service Account Email address
     Scopes: https://www.google.com/m8/feeds,https://www.googleapis.com/auth/admin.directory.group,https://www.googleapis.com/auth/admin.directory.user
 
+3) Copy config.conf.template -> config.conf
+- service_account_email = <Service Account Email>
+
 3) On first use, authenticate the script against the developer account email.
 
 Copies select domain users as contacts under a set group for selected organization's members.
