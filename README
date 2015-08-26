@@ -1,5 +1,7 @@
 Tools which copy Google domain users and calendar resources to contacts.
 
+Assumes Google Apps Directory Sync (GADS) is in use to sync from LDAP to Google.
+
 Install requirements:
 $ pip install -r requirements.txt
 
