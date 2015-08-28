@@ -4,11 +4,7 @@ from gdata.data import (ExtendedProperty, Name, GivenName, FullName, FamilyName,
 from gdata.contacts.data import (ContactsFeed, GroupMembershipInfo, GroupEntry, ContactEntry)
 from gdata.contacts.client import ContactsQuery
 
-import sys
-import copy
-import os.path
-import logging
-import logging.config
+import sys, copy, time, os.path, logging, logging.config
 from fnmatch import fnmatch
 from operator import attrgetter as get, itemgetter as iget
 from contextlib import closing
@@ -32,7 +28,6 @@ def resources_to_contacts():
     # Select Calendars by options
     filtered_calendars = filter(lambda cal: \
         fnmatch(cal.resource_email, options().select_pattern), calendars)
-    filtered_calendar_by_email_dict = dict(zip(map(get('resource_email'), filtered_calendars), filtered_calendars))
 
     # Fetch all domain users
     all_users = exhaust(admin(options=options()).users().list, dict(domain=options().domain, maxResults=500), 'users')
@@ -49,65 +44,72 @@ def resources_to_contacts():
     logging.info('Starting Calendar Resource to Contacts Group copy operation. Selection is "%s" (%d calendar(s)) and target is "%s" (%d user(s))',
         options().select_pattern, len(filtered_calendars), options().user_pattern, len(filtered_users))
 
+    process_users(filtered_users, filtered_calendars)
+
+def process_users(filtered_users, filtered_calendars):
     for target_user in filtered_users:
-        contacts_client = contacts(email=target_user, options=options())
+        process_user(target_user, filtered_calendars)
 
-        if options().undo:
-            undo(contacts_client, target_user, ContactsFeed)
-            continue
+def process_user(target_user, filtered_calendars):
+    filtered_calendar_by_email_dict = dict(zip(map(get('resource_email'), filtered_calendars), filtered_calendars))
+    contacts_client = contacts(email=target_user, options=options())
 
-        # Get Contacts Groups for user
-        groups = contacts_client.get_groups().entry
+    if options().undo:
+        undo(contacts_client, target_user, ContactsFeed)
+        return
 
-        # Find Contact Group by extended property
-        magic_group = get_magic_group(groups) or create_magic_group(contacts_client)
-        magic_group_members = get_group_members(contacts_client, magic_group)
-        magic_group_emails_set = map(get('address'), flatmap(get('email'), magic_group_members))
+    # Get Contacts Groups for user
+    groups = contacts_client.get_groups().entry
 
-        # Find "My Contacts" group in Contacts
-        my_contacts_group = next(iter(
-            filter(lambda group: group.system_group and group.system_group.id == options().my_contacts_id, groups)), None)
+    # Find Contact Group by extended property
+    magic_group = get_magic_group(groups) or create_magic_group(contacts_client)
+    magic_group_members = get_group_members(contacts_client, magic_group)
+    magic_group_emails_set = map(get('address'), flatmap(get('email'), magic_group_members))
 
-        logging.info('%s: Using group called "%s" with %d members and ID %s',
-            target_user, magic_group.title.text, len(magic_group_members),
-            magic_group.id.text)
+    # Find "My Contacts" group in Contacts
+    my_contacts_group = next(iter(
+        filter(lambda group: group.system_group and group.system_group.id == options().my_contacts_id, groups)), None)
 
-        # Add new Calendar Resources as Contacts
-        with closing(Batch(contacts_client, ContactsFeed)) as batch:
-            for cal in filter(lambda x: \
-                    x.resource_email not in magic_group_emails_set, filtered_calendars):
-                new_contact = calendar_resource_to_contact(cal)
+    logging.info('%s: Using group called "%s" with %d members and ID %s',
+        target_user, magic_group.title.text, len(magic_group_members),
+        magic_group.id.text)
 
-                # Add Contact to the relevant groups
-                new_contact.group_membership_info.append(GroupMembershipInfo(href=magic_group.id.text))
-                if options().my_contacts and my_contacts_group:
-                    new_contact.group_membership_info.append(GroupMembershipInfo(href=my_contacts_group.id.text))
+    # Add new Calendar Resources as Contacts
+    with closing(Batch(contacts_client, ContactsFeed)) as batch:
+        for cal in filter(lambda x: \
+                x.resource_email not in magic_group_emails_set, filtered_calendars):
+            new_contact = calendar_resource_to_contact(cal)
 
-                # Set Contact extended property
-                extprop = ExtendedProperty()
-                extprop.name = options().contact_extended_property_name
-                extprop.value = options().contact_extended_property_value
-                new_contact.extended_property.append(extprop)
+            # Add Contact to the relevant groups
+            new_contact.group_membership_info.append(GroupMembershipInfo(href=magic_group.id.text))
+            if options().my_contacts and my_contacts_group:
+                new_contact.group_membership_info.append(GroupMembershipInfo(href=my_contacts_group.id.text))
 
-                logging.debug('%s: Creating contact "%s"', target_user,
-                        new_contact.name.full_name.text)
-                batch.put('add_insert', new_contact)
+            # Set Contact extended property
+            extprop = ExtendedProperty()
+            extprop.name = options().contact_extended_property_name
+            extprop.value = options().contact_extended_property_value
+            new_contact.extended_property.append(extprop)
 
-        # Sync data for existing Calendar Resources that were added by the script. Remove those that have been deleted
-        with closing(Batch(contacts_client, ContactsFeed)) as batch:
-            for existing_contact in filter(is_script_contact, magic_group_members):
-                calendar_resource_to_copy = get_value_by_contact_email(filtered_calendar_by_email_dict, existing_contact)
+            logging.debug('%s: Creating contact "%s"', target_user,
+                    new_contact.name.full_name.text)
+            batch.put('add_insert', new_contact)
 
-                if calendar_resource_to_copy:
-                    calendar_contact = calendar_resource_to_contact(calendar_resource_to_copy)
-                    if sync_contact(calendar_contact, existing_contact):
-                        logging.info('%s: Modifying contact "%s" with ID %s',
-                            target_user, existing_contact.name.full_name.text, existing_contact.id.text)
-                        batch.put('add_update', existing_contact)
-                elif options().delete_old:
-                    logging.info('%s: Removing surplus auto-generated contact "%s" with ID %s',
+    # Sync data for existing Calendar Resources that were added by the script. Remove those that have been deleted
+    with closing(Batch(contacts_client, ContactsFeed)) as batch:
+        for existing_contact in filter(is_script_contact, magic_group_members):
+            calendar_resource_to_copy = get_value_by_contact_email(filtered_calendar_by_email_dict, existing_contact)
+
+            if calendar_resource_to_copy:
+                calendar_contact = calendar_resource_to_contact(calendar_resource_to_copy)
+                if sync_contact(calendar_contact, existing_contact):
+                    logging.info('%s: Modifying contact "%s" with ID %s',
                         target_user, existing_contact.name.full_name.text, existing_contact.id.text)
-                    batch.put('add_delete', existing_contact)
+                    batch.put('add_update', existing_contact)
+            elif options().delete_old:
+                logging.info('%s: Removing surplus auto-generated contact "%s" with ID %s',
+                    target_user, existing_contact.name.full_name.text, existing_contact.id.text)
+                batch.put('add_delete', existing_contact)
 
 
 def sync_contact(source, target):

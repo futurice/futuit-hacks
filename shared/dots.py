@@ -26,7 +26,7 @@ class DotDict(dict):
 def dotset(obj, keys, value):
     attrs = keys.split('.')
     target = obj
-    if '.' in attrs:
+    if '.' in keys:
         target = dotget(obj, '.'.join(attrs[:-1]))
     setattr(target, attrs[-1], value)
 
