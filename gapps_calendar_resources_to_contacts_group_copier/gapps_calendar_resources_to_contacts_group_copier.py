@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-"""A script that copies select Calendar Resources as Contacts under a set group for selected organization's members."""
-
 from atom.data import (Title, Content)
 from gdata.data import (ExtendedProperty, Name, GivenName, FullName, FamilyName, Email, WORK_REL)
 from gdata.contacts.data import (ContactsFeed, GroupMembershipInfo, GroupEntry, ContactEntry)

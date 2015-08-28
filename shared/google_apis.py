@@ -15,6 +15,10 @@ from oauth2client.file import Storage
 
 from shared.files import fileloc
 
+"""
+GDATA
+https://developers.google.com/gdata/docs/directory
+"""
 GDATA_SERVICES = {
 'contacts': ContactsClient,
 'calendar_resource': CalendarResourceClient,}

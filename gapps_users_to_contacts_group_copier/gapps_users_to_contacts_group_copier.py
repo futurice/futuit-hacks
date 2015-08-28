@@ -1,9 +1,4 @@
 #!/usr/bin/env python
-
-"""A script that automatically synchronizes GApps Directory users under each user's Google Contacts in a special group."""
-__author__ = "vsin"
-__version__ = "1.0.0"
-
 from atom.data import (Title)
 from gdata.data import (WORK_REL, MOBILE_REL, ExtendedProperty)
 import gdata.data
