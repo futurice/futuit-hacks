@@ -52,8 +52,6 @@ def is_renamed_contact(contact):
         contact.extended_property))
 
 def undo(contacts_client, target_user, feed):
-    # Let's delete users by global list and group list on the off chance the global list
-    # is not comprehensive due to its size exceeding query limits.
     removed_ids = set()
 
     contacts = contacts_client.get_contacts().entry

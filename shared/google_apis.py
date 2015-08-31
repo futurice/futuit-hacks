@@ -121,6 +121,10 @@ def submit_feed(contacts_client, feed):
                 result.batch_id.text,
                 result.id and result.id.text or result.get_id(),
                 result.name and result.name.full_name and result.name.full_name or "name unknown")
+            if status_code == 412:
+                logging.warn("Forcing %s due Etags mismatch"%result.batch_operation.type)
+                entry = feed.entry[int(result.batch_id.text)]
+                getattr(contacts_client, result.batch_operation.type)(entry, force=True)
 
 # http://stackoverflow.com/questions/23576729/getting-if-match-or-if-none-match-header-or-entry-etag-attribute-required-erro
 def patched_post(client, entry, uri, auth_token=None, converter=None, desired_class=None, **kwargs):
