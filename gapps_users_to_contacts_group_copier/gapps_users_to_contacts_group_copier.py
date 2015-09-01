@@ -530,6 +530,13 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
                 logging.info('%s: Removing contact "%s" with ID %s', target_user_email, existing_contact.name.full_name.text, existing_contact.id.text)
                 batch.put('add_delete', existing_contact)
 
+    # Check dangling entries in scripted group (extended_property only held 'google_apps_sync' Employee ID)
+    with closing(Batch(contacts_client, ContactsFeed)) as batch:
+        for dangling_contact in filter(lambda contact: not is_script_contact(contact), magic_group_members):
+            logging.info('%s: Removing dangling contact "%s" with ID %s',
+                        target_user_email, dangling_contact.name.full_name.text, dangling_contact.id.text)
+            batch.put('add_delete', dangling_contact)
+
     # Add new users (not already in the group) as contacts
     with closing(Batch(contacts_client, ContactsFeed)) as batch:
         for user_to_copy in users_to_copy:
