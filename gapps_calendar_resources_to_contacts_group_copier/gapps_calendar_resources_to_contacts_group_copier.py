@@ -33,7 +33,6 @@ def resources_to_contacts():
     all_users = exhaust(admin(options=options()).users().list, dict(domain=options().domain, maxResults=500), 'users')
 
     # Get opt-out lists
-    # TODO: opt-out data should NOT be used (stale emails); move service to FUM
     optout_emails_set = set() if not options().undo else get_optout_set(options().optout_uri)
 
     # Select domain users by options
