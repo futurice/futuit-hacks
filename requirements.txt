@@ -1,0 +1,4 @@
+gdata==2.0.18
+google-api-python-client==1.4.1
+pyOpenSSL==0.15.1
+kids.cache==0.0.4

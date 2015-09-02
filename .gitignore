@@ -1,5 +1,8 @@
-token_domain.conf
-token.conf
 *.pyc
 *.log
-*.log.20*
+client_secrets.json
+service.p12
+a_credentials_file
+gdata_credentials_file
+tags
+config.conf
