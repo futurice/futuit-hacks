@@ -3,7 +3,8 @@ import json
 
 def get_optout_set(uri):
     """Returns a set of user-names who wish to opt-out from synchronization."""
-    return []
+    if not uri:
+        return set()
 
     optout_json = json.load(urllib.urlopen(uri))
     if u'settings' in optout_json and \
