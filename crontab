@@ -4,6 +4,7 @@ DIR=/home/gdircopier/gapps_python_scripts
 # 0:00 daily: cd to directory script dir and run script for all users,
 # selecting also users without a phone number, adding to My Contacts,
 # renaming old and using rotating logging
-0 0 * * * cd $DIR/gapps_users_to_contacts_group_copier && ./gapps_users_to_contacts_group_copier.py -U '*' -P -M -R -l logging_rotate.conf
+0 0 * * * cd $DIR && python -m gapps_users_to_contacts_group_copier.gapps_users_to_contacts_group_copier -U '*' -P -M -D -l logging_rotate.conf
 # 1:00 daily: cd to calendar script dir and run script for all users, adding to My Contacts, deleting old and using rotating logging
-0 1 * * * cd $DIR/gapps_calendar_resources_to_contacts_group_copier && ./gapps_calendar_resources_to_contacts_group_copier.py -U '*' -M -D -l logging_rotate.conf
+0 1 * * * cd $DIR && python -m gapps_calendar_resources_to_contacts_group_copier.gapps_calendar_resources_to_contacts_group_copier -U '*' -M -D -l logging_rotate.conf
+
