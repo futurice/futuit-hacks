@@ -119,7 +119,7 @@ type_to_rel_mapper = {
     u'work_mobile': gdata.data.WORK_MOBILE_REL,
     u'pager': gdata.data.PAGER_REL,
     u'work_pager': gdata.data.WORK_PAGER_REL,
-    u'company_main': gdata.data.COMPANY_MAIN_REL, 
+    u'company_main': gdata.data.COMPANY_MAIN_REL,
     u'assistant': gdata.data.ASSISTANT_REL,
     u'car': gdata.data.CAR_REL,
     u'radio': gdata.data.RADIO_REL,
@@ -169,9 +169,9 @@ def json_to_organization_object(json):
 def json_to_phone_number_object(json):
     phone_number_object = gdata.data.PhoneNumber(json[u'value'])
     set_rel_or_label(phone_number_object, json)
-    
+
     if u'primary' in json and json[u'primary']: phone_number_object.primary = "true"
-    
+
     return phone_number_object
 
 def json_to_external_id_object(json):
@@ -219,7 +219,7 @@ def json_to_im_object(json):
             elif json[u'protocol'] in protocol_mapper:
                 im_object.protocol = protocol_mapper[json[u'protocol']]
             else: im_object.protocol = json[u'protocol']
-    
+
     if u'primary' in json and json[u'primary']: im_object.primary = "true"
     im_object.address = json[u'im']
 
@@ -268,7 +268,7 @@ def json_to_contact_object(json):
         org_object = json_to_organization_object(primary_org)
         org_object.primary = "true"
         new_contact.organization = org_object
-        
+
     elif options().organization_name:
         # Add at least our org name
         org_object = gdata.data.Organization()
@@ -282,12 +282,12 @@ def json_to_contact_object(json):
         for json_phone in json[u'phones']:
             if u'value' in json_phone:
                 new_contact.phone_number.append(json_to_phone_number_object(json_phone))
-        
+
     if u'externalIds' in json:
         for json_external_id in json[u'externalIds']:
             if u'value' in json_external_id:
                 new_contact.external_id.append(json_to_external_id_object(json_external_id))
-                
+
     if u'addresses' in json:
         for json_address in json[u'addresses']:
             if u'formatted' in json_address and json_address[u'formatted']:
@@ -297,7 +297,7 @@ def json_to_contact_object(json):
         for json_im in json[u'ims']:
             if u'im' in json_im:
                 new_contact.im.append(json_to_im_object(json_im))
-                
+
     return new_contact
 
 def sync_contact(source, target):
@@ -507,7 +507,7 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
     if options().undo:
         undo(contacts_client, target_user_email, ContactsFeed)
         return
-    
+
     users_groups = contacts_client.get_groups().entry
 
     # Find group by extended property
@@ -542,12 +542,12 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
         for user_to_copy in users_to_copy:
             if get_ldap_id_json(user_to_copy) not in magic_group_ldaps_set():
                 new_contact = json_to_contact_object(user_to_copy)
-                
+
                 # Add the relevant groups
                 new_contact.group_membership_info.append(GroupMembershipInfo(href=magic_group.id.text))
                 if options().my_contacts and my_contacts_group:
                     new_contact.group_membership_info.append(GroupMembershipInfo(href=my_contacts_group.id.text))
-                
+
                 # Set extended properties
                 new_contact.extended_property.append(ExtendedProperty(name=options().contact_id_extended_property_name, value=get_ldap_id_json(user_to_copy)))
                 new_contact.extended_property.append(ExtendedProperty(name=options().contact_extended_property_name, value=options().contact_extended_property_value))
@@ -555,7 +555,7 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
                 logging.debug('%s: Creating contact "%s"',
                     target_user_email, new_contact.name.full_name.text)
                 batch.put('add_insert', new_contact)
-    
+
     # Sync data for existing contacts that were added by the script and remove those that have been deleted
     with closing(Batch(contacts_client, ContactsFeed)) as batch:
         for existing_contact in filter(is_script_contact, magic_group_members):
