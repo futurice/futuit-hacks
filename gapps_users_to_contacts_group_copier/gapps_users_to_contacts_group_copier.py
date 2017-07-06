@@ -46,19 +46,17 @@ def b64dec(s):
         s += (4 - extra) * '='
     return base64.b64decode(s)
 
+def handle_string_decoding(s):
+    """ Base64 decode strings like EmployeeId if needed. See options. """
+    return (b64dec(s) if (options().base64_encoding == "true") else s)
+
 def get_ldap_id_json(user):
     """
     GADS syncs EmployeeID under externalIds: [{type: organization, value: base64encoded(EmployeeID)}]
     - return plaintext EmployeeID
     """
-    if options().base64_encoding == "false":
-        return next(iter(filter(None,
-                map(lambda x: x['value'] if x['type']=='organization' else None,
-                user.get('externalIds', []))
-            )), None)
-    else:
-        return next(iter(filter(None,
-                map(lambda x: b64dec(x['value']) if x['type']=='organization' else None,
+    return next(iter(filter(None,
+                map(lambda x: handle_string_decoding(x['value']) if x['type']=='organization' else None,
                 user.get('externalIds', []))
             )), None)
 
