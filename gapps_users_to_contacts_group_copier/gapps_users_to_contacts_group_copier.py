@@ -51,8 +51,14 @@ def get_ldap_id_json(user):
     GADS syncs EmployeeID under externalIds: [{type: organization, value: base64encoded(EmployeeID)}]
     - return plaintext EmployeeID
     """
-    return next(iter(filter(None,
-            map(lambda x: b64dec(x['value']) if x['type']=='organization' else None,
+    if options().base64_encoding == "false":
+        return next(iter(filter(None,
+                map(lambda x: x['value'] if x['type']=='organization' else None,
+                user.get('externalIds', []))
+            )), None)
+    else:
+        return next(iter(filter(None,
+                map(lambda x: b64dec(x['value']) if x['type']=='organization' else None,
                 user.get('externalIds', []))
             )), None)
 

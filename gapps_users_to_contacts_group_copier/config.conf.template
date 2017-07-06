@@ -5,6 +5,7 @@ group = Futurice employees
 organization_name = Futurice
 rename_suffix = (EX)
 optout_uri =
+base64_encoding = false
 
 [application]
 domain = futurice.com
