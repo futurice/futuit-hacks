@@ -6,3 +6,5 @@ a_credentials_file
 gdata_credentials_file
 tags
 config.conf
+*.log.*
+*~
