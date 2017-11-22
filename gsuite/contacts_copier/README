@@ -1,0 +1,53 @@
+Tools which copy Google domain users and calendar resources to contacts.
+
+Assumes Google Apps Directory Sync (GADS) is in use to sync from LDAP to Google.
+
+Install requirements:
+$ apt-get install python-dev libffi-dev libssl-dev
+$ pip install -r requirements.txt
+
+Parameters configured in config.conf in respective script directories. Some CLI arguments as seen in options.py.
+
+Configure Access to Google Services:
+
+* Create a project in https://console.developers.google.com/:
+APIs & auth
+ APIs
+  Calendar
+  Contacts
+  Groups Settings API
+  Admin SDK
+ Credentials
+  Add Credentials
+   Oauth2 Client ID
+    Web Application
+     Authorized JavaScript origin
+     https://localhost:8000
+     Authorized redirect URIs
+     https://localhost:8000/oauth2callback
+    - click to download, save as 'client_secrets.json' in used script directories
+   Service Account
+    - Generate new P12 key, save as 'service.p12' in used script directories
+
+* Add permissions in https://admin.google.com/:
+Security
+ Advanced Settings
+  Manage API client access
+   Authorize new API client using:
+    Client Name: Service Account Email address
+    Scopes: https://www.google.com/m8/feeds,https://www.googleapis.com/auth/admin.directory.group,https://www.googleapis.com/auth/admin.directory.user
+
+* Copy config.conf.template -> config.conf
+- service_account_email = <Service Account Email>
+
+* On first use, authenticate the script against the developer account email to enable further offline use.
+
+Copies select domain users as contacts under a set group for selected organization's members.
+$ python -m gapps_users_to_contacts_group_copier.gapps_users_to_contacts_group_copier -U '*@company.com' -P -M -R
+
+Copies select Calendar Resources as contacts under a set group for selected organization's members.
+$ python -m gapps_calendar_resources_to_contacts_group_copier.gapps_calendar_resources_to_contacts_group_copier -U '*@company.com' -M -D
+
+
+License
+This software is licensed under the New BSD License. See the COPYING file for the full license text.

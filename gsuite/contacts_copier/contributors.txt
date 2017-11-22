@@ -1,0 +1,4 @@
+Contributors
+------------
+Ville Sinisalo, 2013
+Jussi Vaihia, 2015
