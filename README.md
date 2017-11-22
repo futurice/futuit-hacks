@@ -26,3 +26,8 @@ Perhaps it can still be of use to someone, somewhere.
 
 Exchange export script to make the flatfiles at
 http://careexchange.in/how-to-export-all-distribution-group-and-all-members-of-it-exchange-2010/
+
+
+# License
+
+Everything in this repository is licensed under MIT license unless marked otherwise. For details see file LICENSE.
