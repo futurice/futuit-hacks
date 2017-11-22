@@ -1,0 +1,13 @@
+*.log
+*.log.*
+*.pyc
+private_settings.py
+*~
+*.pid
+*.dat
+bk.*
+CES.db
+client_secrets.json
+DEADJOE
+*.p12
+config.conf
