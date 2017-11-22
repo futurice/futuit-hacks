@@ -13,3 +13,7 @@ Copy events from "master" calendar to user's personal calendars.
 ## contacts_copier
 
 Copy contacts from Google Cloud Directory to user's contacts. This is hack mainly for iOS users, as the iOS contacts app does not read information from the Google Directory.
+
+# License
+
+Everything in this repository is licensed under MIT license unless marked otherwise. For details see file LICENSE.
