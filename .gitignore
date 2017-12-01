@@ -11,3 +11,4 @@ client_secrets.json
 DEADJOE
 *.p12
 config.conf
+a_credentials_file

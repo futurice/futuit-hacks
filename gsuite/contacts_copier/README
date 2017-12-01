@@ -4,7 +4,8 @@ Assumes Google Apps Directory Sync (GADS) is in use to sync from LDAP to Google.
 
 Install requirements:
 $ apt-get install python-dev libffi-dev libssl-dev
-$ pip install -r requirements.txt
+$ pipenv install --ignore-pipfile
+(If you want to install newest versions of dependencies, run `pipenv install` instead)
 
 Parameters configured in config.conf in respective script directories. Some CLI arguments as seen in options.py.
 

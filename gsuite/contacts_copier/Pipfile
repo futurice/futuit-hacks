@@ -1,0 +1,22 @@
+[[source]]
+
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+
+[dev-packages]
+
+
+
+[packages]
+
+gdata = "==2.0.18"
+google-api-python-client = "*"
+"kids.cache" = "*"
+pyopenssl = "*"
+
+
+[requires]
+
+python_version = "2.7"
