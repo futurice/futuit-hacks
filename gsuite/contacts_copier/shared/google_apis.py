@@ -2,7 +2,7 @@ import httplib2
 import sys
 
 from apiclient.discovery import build
-from oauth2client.client import SignedJwtAssertionCredentials
+from oauth2client.service_account import ServiceAccountCredentials
 
 import logging
 import gdata.client
@@ -43,13 +43,16 @@ def ensureOAuthCredentials(secrets_file='client_secrets.json',
         storage.put(credentials)
     return credentials
 
-def get_service_account_credentials(scopes=[], user_email='', pkcs12_file_path='', service_account_email=''):
-    with file(fileloc(pkcs12_file_path), 'rb') as f:
-        key = f.read()
-    return SignedJwtAssertionCredentials(service_account_email,
-        key,
-        scope=scopes,
-        sub=user_email)
+def get_service_account_credentials(scopes=[], user_email=None, pkcs12_file_path='', service_account_email=''):
+    creds =  ServiceAccountCredentials.from_p12_keyfile(
+        service_account_email,
+        pkcs12_file_path,
+        scopes=scopes)
+    
+    if user_email is None:
+        return creds
+    else:
+        return creds.create_delegated(user_email)
 
 def get_credentials(scopes, email, options, storage_file='a_credentials_file'):
     if email:

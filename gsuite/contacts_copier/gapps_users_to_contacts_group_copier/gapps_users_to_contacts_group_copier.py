@@ -6,6 +6,7 @@ import gdata.apps.client
 import gdata.contacts.data
 import gdata.contacts.client
 from gdata.contacts.data import (ContactsFeed, GroupMembershipInfo, ContactEntry)
+from xml.etree.cElementTree import ParseError
 
 import base64
 import sys
@@ -20,7 +21,6 @@ import urllib
 from operator import attrgetter as get, itemgetter as iget
 from contextlib import closing
 
-from shared.futurice import get_optout_set
 from shared.google_apis import contacts, admin, exhaust, Batch
 from shared.implementation import (get_magic_group, get_group_members,
         create_magic_group, is_script_contact, is_script_group, undo,
@@ -597,23 +597,22 @@ def process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_d
 #
 
 def main():
-    main_logging()
-
-def main_logging():
     if options().delete_old and options().rename_old:
         sys.exit("Conflicting options detected, aborting")
 
-    optout_emails_set = get_optout_set(options().optout_uri)
-
     users_to_copy, target_user_emails = select_users()
-    target_user_emails = filter(lambda email: email.lower() not in optout_emails_set, target_user_emails)
     user_to_copy_by_ldap_dict = dict(zip(map(get_ldap_id_json, users_to_copy), users_to_copy))
 
     logging.info('Starting Directory to Contacts Group copy operation. Selection is "%s" (%d user(s)) and target is "%s" (%d user(s))',
         options().select_pattern, len(users_to_copy), options().user_pattern, len(target_user_emails))
 
     for target_user_email in target_user_emails:
-        process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_dict)
+        # Gdata api sometimes return invalid XML. IF that happens, we get ParseError
+        # Detect that and continue from next user. The error likely won't happen the next time
+        try:
+            process_target_user(target_user_email, users_to_copy, user_to_copy_by_ldap_dict)
+        except ParseError:
+            logging.exception("Encountered error while processing user {}, continuing".format(target_user_email))
 
 if __name__ == "__main__":
     main()
