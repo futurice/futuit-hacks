@@ -1,0 +1,439 @@
+/*
+PLEASE NOTE:
+Do not make ANY changes to this file directly. Make all changes to the original stylesheet found in
+https://github.com/futurice/futuit-hacks/confluence
+and then copy-paste those results here. All non-committed changes WILL be accidentally overwritten
+later. Also please comment your changes so that you and your colleague will be able to understand
+those also tomorrow and/or next year. Thank you!
+*/
+
+*{
+}
+
+/*----------------------- CUSTOM PROPERTIES -----------------------*/
+:root { 
+    /* Colors */
+    --custom-gray: #a6aaad;
+    --custom-lightgray: #f7f7f7;
+    --custom-white: #fefefe;
+    --custom-dark: #063642;
+    --custom-green: #2e8a41;
+
+    --theme-header: #eef2f4;
+    --theme-contrast: #dee1e2;
+    --theme-nav: #cee0e0;
+    --theme-navlink: #075042;
+
+    --futuricegreen: #349D4A;
+    --info-message: #f47623;
+
+    /* Sizes */
+    --size-main: 1440px;
+    --size-header: 78px;
+    --size-max-message: 520px;
+}
+
+/*-----------------------FUTURICE FONTS (FLOCKLR)-----------------------*/
+@font-face {  
+    font-family: 'Futurice';  
+    src: url(//static.flockler.com/assets/futurice2/fonts/FuturiceRegular-142a9c35cac7ad59446b4a3f60f45f3e5a57687b8c55bfb8f947d4d2bcbca4d9.woff) 
+    format("woff") ,url(//static.flockler.com/fonts/futurice2/fonts/FuturiceRegular.otf) format("opentype");  
+    font-weight: normal;  
+    font-style: normal; 
+}  
+  
+@font-face {  
+    font-family: 'Futurice';  
+    src: url(//static.flockler.com/assets/futurice2/fonts/FuturiceBold-eefb87ff834be67ddf977b1536e700dd51f032962568b743fcaa0eaf0b921489.woff) 
+    format("woff"),url(//static.flockler.com/fonts/futurice2/fonts/FuturiceBold.otf) format("opentype");  
+    font-weight: 700;  
+    font-style: normal;
+}  
+  
+@font-face {  
+    font-family: 'FuturiceMono';  
+    src: url(//static.flockler.com/assets/futurice2/fonts/FuturiceMonospaced-c3cdc9f23b60d32cce5f351b82d155484fe0d0af7476d2e26d4ebe6b4a12bf2a.woff) 
+    format("woff"),url(//static.flockler.com/fonts/futurice2/fonts/FuturiceMonospaced.otf) format("opentype");  
+    font-weight: normal;  
+    font-style: normal;  
+}
+
+/*--------------------------- BODY --------------------------------*/
+body {  
+    -webkit-font-smoothing: antialiased;  
+    -moz-osx-font-smoothing: grayscale;  
+    color: #210f00;  
+    font-family: "Futurice", "Helvetica Neue", Arial, sans-serif;  
+    -moz-font-feature-settings: "kern" 1, "liga" 1, "swsh" 1;-moz-font-feature-settings:"kern=1", "liga=1", "swsh=1";  
+    -ms-font-feature-settings: "kern" 1, "liga" 1, "swsh" 1;-o-font-feature-settings:"kern" 1, "liga" 1, "swsh" 1;  
+    -webkit-font-feature-settings: "kern" 1, "liga" 1, "swsh" 1;font-feature-settings:"kern" 1, "liga" 1, "swsh" 1;  
+    font-size: 16px;  
+    font-weight: 300;  
+    line-height: 1.4;  
+    word-break: break-word;
+    background-color: var(--custom-white);
+} 
+
+/*----------------------- TYPOGRAPHY -----------------------*/ 
+#title-text { 
+    font-size: 48px; 
+    padding-top: 1.4em !important; 
+    padding-bottom: 1em;
+}  
+#title-text a { text-decoration: none; }  
+p { font-size: 14px; line-height: 1.5; } 
+a { color: black; }
+ul { font-size: 14px; }  
+li { line-height: 1.8; } 
+
+/*----------------------- HEADER -----------------------*/
+#header .aui-header { 
+    height: var(--size-header);
+    border: none; 
+    background-color: var(--theme-header); 
+    padding-top: 14px; 
+    padding-bottom: 14px; 
+}  
+#header .aui-header a:hover {
+    background-color: Transparent;
+    border-color: Transparent;
+}
+.aui-nav-imagelink:hover,
+.aui-nav-imagelink:active,
+.aui-nav-imagelink:focus { 
+    background: Transparent !important; 
+    border-color: Transparent !important; 
+}
+.aui-header-secondary .aui-nav { 
+    padding-top: 6px;
+}
+
+    /* Futurice logo */
+.aui-header .aui-header-logo img { 
+    max-height: 32px; 
+    border-bottom: 2.8px solid Transparent; 
+    -o-transition:.4s;
+    -ms-transition:.4s;
+    -moz-transition:.4s;
+    -webkit-transition:.4s;
+    transition:.4s;
+}
+.aui-header .aui-header-logo img:hover { 
+    border-bottom: 2.8px solid var(--futuricegreen); 
+}
+
+    /* 'Spaces' -button */
+#space-menu-link {
+    font-size: 16px;
+    color: black;
+    line-height:1.5;
+    -o-transition:.5s;
+    -ms-transition:.5s;
+    -moz-transition:.5s;
+    -webkit-transition:.5s;
+    transition:.5s;
+}
+#space-menu-link:hover, 
+#space-menu-link:active,
+#space-menu-link:focus {
+    color: green !important; 
+    background-color: Transparent !important
+}
+
+    /* Dropdowns */
+.aui-dropdown2.aui-style-default,
+#com-atlassian-confluence .aui-dd-parent .aui-dropdown { 
+    border: 1.4px solid var(--custom-lightgray); 
+}
+
+/*----------------------- LEFT SIDE BAR -----------------------*/
+div.ia-fixed-sidebar { border-right: 2px solid var(--custom-lightgray)}
+.acs-side-bar { background-color: var(--custom-white); } 
+.acs-side-bar a { 
+    color: var(--custom-gray); 
+    text-decoration: none; 
+}
+.acs-side-bar a:hover { 
+    color: black; 
+    background-color: Transparent !important; 
+}
+.acs-side-bar-content {  
+    font-size: 14px;  
+    padding-bottom: 16px;
+    font-weight: bold;  
+} 
+.space-information-container {   
+    padding: 32px 24px 24px 24px;   
+    font-size: 22px;  
+    font-weight: bold;  
+    hyphens: initial;  
+    line-height: 1;  
+}
+.ia-splitter-handle-highlight { border-left: unset; }
+.ia-splitter-handle { right: -10px; }
+
+    /* Page tree*/
+.page-tree { display: none; }  
+.acs-side-bar-content { font-weight: bold; font-size: 16px; hyphens: auto; }
+acs-side-bar-content li { margin: 20px 0px 20px 0px; }  
+.plugin_pagetree_childtoggle_container { visibility: hidden; }
+.ia-secondary-container { margin: 0px; }
+.quick-links-wrapper { display: none; }
+
+    /* Hide bigger logo & space favourite btn */
+.avatar { display: none !important; }
+#space-favourite-add { display: none; }
+
+    /* Bottom section */
+.space-tools-section { 
+    border-top: 1px solid var(--theme-contrast);
+}
+#space-tools-menu-trigger { margin: 4px 6px;}
+.expand-collapse-trigger { background-color: Transparent; }
+
+/*----------------------- SPACE NAVIGATION -----------------------*/
+div.aui-navgroup-inner { 
+    position: relative; 
+    margin-left: 10px !important;
+    margin-right: 10px !important;
+}
+.aui-navgroup-horizontal { 
+    border-top: unset;
+    border-bottom: 1px solid var(--theme-contrast);
+}
+.aui-navgroup-horizontal .aui-navgroup-secondary { 
+    position: absolute;
+    right: 0;
+    bottom: 0;
+}
+#navigationbarpro a:hover { color: white; }
+.aui-navgroup-horizontal .aui-nav > li a:focus { background: unset; }
+
+.spacetools .aui-navgroup-horizontal { margin-right: unset; margin-left: unset; }
+
+div.subspaces-menu { 
+    display: inline-block; 
+    margin-left: 0px!important; 
+    padding-left: 6px;
+    padding-right: 6px;
+    box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    -webkit-box-sizing: border-box;
+    left: 0;
+}
+#com-atlassian-confluence div.subspaces-menu ul li a {
+    color: var(--theme-navlink) !important;
+}
+
+    /* Hover & Unhover nav links */
+#com-atlassian-confluence div.subspaces-menu > ul > li > a:hover,
+#com-atlassian-confluence div.subspaces-menu ul li:hover,
+#com-atlassian-confluence div.subspaces-menu ul li a:hover {
+    background-color: var(--theme-nav) !important;
+}
+li.subspace-nav-element.space.hover > a {
+    background-color: var(--theme-nav) !important;
+}
+
+/*----------------------- MAIN CONTENT -----------------------*/
+#main { 
+    padding: 28px 42px 28px 42px; 
+} 
+.ia-splitter {
+    max-width: var(--size-main);
+    margin: 0 auto;
+}
+.acs-side-bar.ia-scrollable-section,
+div.ia-fixed-sidebar { z-index: unset; }
+
+    /* More responsive Breadcrumbs & Content navigation */
+.content-navigation,
+#breadcrumb-section,
+#page-metadata-banner { width: 50%; }
+
+    /* Allow menu to open over main content */
+.aui-page-panel { position: unset; }
+
+    /* Backgrounds */
+#full-height-container { 
+    background-color: var(--custom-white) !important; 
+}
+.aui-navgroup-horizontal { background: var(--custom-white); }
+
+    /* Prevent change into placeh. -header when side is scrolled */
+#main-header { 
+    position: static !important; 
+    padding: 0px !important; 
+    background-color: Transparent !important; 
+    top: unset !important;
+    margin-top: unset !important;
+    width: unset !important;
+}
+#title-text { display: flex !important; }
+#main-header-placeholder { display: none; }
+
+    /* Sidebars in main content - like help panel */
+#sidebar { width: 24em; margin: 18px; float: left; }
+
+    /* Help panel */
+.help-panel { border: 2px solid var(--info-message); }
+.help-panel-header { 
+    background-color: var(--info-message); 
+    border-bottom: unset; 
+    color: white;
+}
+#sidebar-help-tip { 
+    position: relative !important; 
+    top: unset !important; 
+    right: unset !important; 
+    float: unset;
+    width: unset; 
+    max-width: var(--size-max-message);
+}
+#sidebar-container { padding-bottom: 18px; }
+.with-space-sidebar #main #content.space { margin-top: unset !important; }
+
+    /* Hint & Info Messages */
+.aui-message.hint, 
+.aui-message-hint, 
+.aui-message.info, 
+.aui-message-info { 
+    border: 1px solid var(--info-message); 
+}
+.aui-message.hint:before, 
+.aui-message-hint:before, 
+.aui-message.info:before, 
+.aui-message-info:before {
+    background-color: var(--info-message);
+}
+
+    /*Remove unnecessary margin-right from content*/
+.with-space-sidebar .has-sidebar #space-tools-body { margin-right: unset; }
+
+    /*Define new head color for wiki tables*/
+.wiki-content table.tablesorter>thead>tr>th { 
+    background-color: var(--custom-lightgray); 
+}
+
+.aui-tabs > .tabs-menu .menu-item a, 
+.aui-tabs > .tabs-menu .menu-item a:link, 
+.aui-tabs > .tabs-menu .menu-item a:visited { 
+    background: var(--theme-contrast); 
+}
+
+/*--------------------------- BUTTONS --------------------------------*/
+.aui-button { 
+    background-color: Transparent; 
+    border-color: Transparent; 
+}
+.aui-button:hover,
+.aui-button:active,
+.aui-button:focus { 
+    background-color: var(--custom-lightgray); 
+    border-color: Transparent; 
+}
+.aui-button, 
+a.aui-button, 
+.aui-button:visited {
+    border-color: Transparent;
+}
+.aui-button-subtle.aui-button { 
+    background-color: Transparent; 
+    border-color: Transparent; 
+}
+.aui-button-subtle.aui-button:hover,
+.aui-button-subtle.aui-button:active,
+.aui-button-subtle.aui-button:focus { 
+    color: var(--futuricegreen);
+    background: Transparent; 
+    border-color: Transparent; 
+}
+
+    /* Dropdown buttons */
+.aui-button.aui-button-subtle.aui-dropdown2-trigger:hover {
+    background-color: Transparent; 
+    border-color: Transparent; 
+    color: var(--futuricegreen);
+}
+.aui-button.aui-button-subtle.aui-dropdown2-trigger:active,
+.aui-button.aui-button-subtle.aui-dropdown2-trigger:focus {
+    background-color: Transparent; 
+    border-color: Transparent; 
+    color: var(--futuricegreen);
+    text-decoration: underline;
+    outline: none;
+}
+
+    /* Green buttons */
+.aui-button.aui-button-primary {
+    background-color: var(--futuricegreen);
+}
+.aui-button.aui-button-primary:hover,
+.aui-button.aui-button-primary:active,
+.aui-buttons > a:hover {
+    background-color: var(--custom-green) !important;
+}
+
+    /* Settings navigation buttons */
+.aui-navgroup-horizontal .aui-nav>li a:hover { 
+    background: var(--futuricegreen);
+    color: white;
+    border-radius: 4px 4px 0px 0px;
+}
+.aui-navgroup-horizontal .aui-nav>li a:active { 
+    background: var(--custom-green);
+}
+
+    /* Edit button & Icon transition magic */
+a#editPageLink.aui-button.aui-button-subtle.edit { 
+    background: var(--futuricegreen); 
+    color: white; 
+    font-weight: bold; 
+}
+#editPageLink:hover .aui-icon.aui-icon-small.aui-iconfont-edit {
+    color: white !important;
+    -webkit-transform: rotate(-80deg) !important;
+    -moz-transform: rotate(-80deg) !important;
+    -ms-transform: rotate(-80deg) !important;
+    -o-transform: rotate(-80deg) !important;
+    transform: rotate(-80deg) !important;
+}
+.aui-icon.aui-icon-small.aui-iconfont-edit {
+    color: white!important;
+    -o-transition:.5s;
+    -ms-transition:.5s;
+    -moz-transition:.5s;
+    -webkit-transition:.5s;
+    transition:.5s;
+}
+
+/*----------------------- FOOTER -----------------------*/
+#footer-logo { background-color: Transparent; } 
+#footer { 
+    opacity: 0.3; 
+    z-index: -1;
+    float: none;
+    padding-bottom: 64px;
+}  
+
+.theme-default .ia-splitter #footer {
+    position: unset;
+}
+
+#likes-section { visibility: hidden !important;}  
+#comments-section { display: none; }  
+#likes-and-labels-container { display: none; }
+
+/*----------------------- EDITING PAGE -----------------------*/
+    /* All must be !important, otherwise opens without custom styles */
+#rte-toolbar { 
+    background-color: var(--custom-white) !important; 
+    border-bottom: 1px solid var(--theme-contrast) !important;
+}
+#rte-savebar {
+    background-color: var(--custom-white) !important; 
+    border-top: 1px solid var(--theme-contrast) !important;
+    padding: 12px 12px 6px 0px !important;
+}
+
+            
