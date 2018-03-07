@@ -175,7 +175,6 @@ div.ia-fixed-sidebar { border-right: 2px solid var(--custom-lightgray)}
     /* Page tree*/
 .page-tree { display: none; }  
 .acs-side-bar-content { font-weight: bold; font-size: 16px; hyphens: auto; }
-acs-side-bar-content li { margin: 20px 0px 20px 0px; }  
 .plugin_pagetree_childtoggle_container { visibility: hidden; }
 .ia-secondary-container { margin: 0px; }
 .quick-links-wrapper { display: none; }
@@ -320,6 +319,9 @@ div.ia-fixed-sidebar { z-index: unset; }
 .aui-tabs > .tabs-menu .menu-item a:visited { 
     background: var(--theme-contrast); 
 }
+
+    /*Display labels*/
+#likes-and-labels-container { display: block; }
 
 /*--------------------------- BUTTONS --------------------------------*/
 .aui-button { 
