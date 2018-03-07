@@ -1,10 +1,11 @@
 /*
-PLEASE NOTE:
-Do not make ANY changes to this file directly. Make all changes to the original stylesheet found in
-https://github.com/futurice/futuit-hacks/confluence
-and then copy-paste those results here. All non-committed changes WILL be accidentally overwritten
-later. Also please comment your changes so that you and your colleague will be able to understand
-those also tomorrow and/or next year. Thank you!
+PLEASE NOTE: Do not make ANY changes to this file directly in Confluence.
+Instead make all changes to the original stylesheet found in
+https://github.com/futurice/futuit-hacks/confluence and then copy-paste those
+results to Confluence. All non-committed changes WILL be accidentally
+overwritten later. Also please comment your changes so that you and your
+colleague will be able to understand those also tomorrow and/or next year. Thank
+you!
 */
 
 *{
@@ -320,9 +321,6 @@ div.ia-fixed-sidebar { z-index: unset; }
     background: var(--theme-contrast); 
 }
 
-    /*Display labels*/
-#likes-and-labels-container { display: block; }
-
 /*--------------------------- BUTTONS --------------------------------*/
 .aui-button { 
     background-color: Transparent; 
@@ -424,7 +422,6 @@ a#editPageLink.aui-button.aui-button-subtle.edit {
 
 #likes-section { visibility: hidden !important;}  
 #comments-section { display: none; }  
-#likes-and-labels-container { display: none; }
 
 /*----------------------- EDITING PAGE -----------------------*/
     /* All must be !important, otherwise opens without custom styles */
