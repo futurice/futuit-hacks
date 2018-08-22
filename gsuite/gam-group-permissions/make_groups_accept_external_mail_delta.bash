@@ -1,6 +1,9 @@
 #! /bin/bash
 # This script makes google groups accept mails from the outside world using GAM.
 #
+# Author: Markus Koskinen, Futurice Oy
+# License: BSD
+#
 # Configuration variables:
 # EXCLUSION_FILE is a file with a linebreak-separated list of emails that should not 
 # accept mails from the world. Also applies to DISABLE_MODERATION, if set.
