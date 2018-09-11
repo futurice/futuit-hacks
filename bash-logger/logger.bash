@@ -22,7 +22,6 @@ fi
 
 # Available log levels. IF you modify these, use powers of 2 to make it possible
 # to use them as bitmasks in the future
-# TODO: maybe turn these around? LOG_LEVEL_OFF needs testing
 readonly LOG_LEVEL_OFF=0      # none
 readonly LOG_LEVEL_FATAL=1    # unusable, crash
 readonly LOG_LEVEL_ERROR=2    # error conditions
@@ -72,7 +71,7 @@ function LOGGER_write_log_message {
   shift
   local message=${*:-}
   if [ -z "$message" ]; then # if message is empty, get from stdin
-    message="$(cat /dev/stdin)"
+    read -r message
   fi
 
   message="$(date '+%Y-%m-%d %H:%M:%S') ${LOGGER_level_name}: $message"
