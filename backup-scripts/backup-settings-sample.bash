@@ -10,8 +10,7 @@ export SNAPSHOT_RETENTION_COUNT=30 # Amount of snapshots to keep. 0 is infinite.
 export SNAPSHOT_ROTATION_SUFFIX="dd.gz.gpg" # Only remove files with this suffix. Set "" to rotate all.
 
 # AWS S3 specific options
-export S3_BUCKET="virtualmachine-backups" # Google storage bucket name
-export S3_REMOTEDIR="${VOLNAME}" # A directory within the bucket
+export S3_BUCKET="virtualmachine-backups" # S3storage bucket name
 export AWSCLI="/bin/aws"
 
 # SSH backup specific options

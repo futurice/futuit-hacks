@@ -113,7 +113,7 @@ function push_snapshot {
   (/bin/dd if="/dev/${VOLGROUP}/${SNAPNAME}" bs=16M status=none|\
     /bin/nice -n 19 /bin/pigz -9 -|\
     /bin/nice -n 19 /usr/bin/gpg -z 0 -c --batch --no-tty --passphrase-file "${PASSFILE}" |\
-    ${AWSCLI} s3 cp - s3://"${S3_BUCKET}"/"${S3_REMOTEDIR}"/"${SNAPNAME}"-"$(date +%Y%m%d-%H%M.dd.gz.gpg)"
+    ${AWSCLI} s3 cp - "s3://${S3_BUCKET}/${S3_REMOTEDIR}/${SNAPNAME}-$(date +%Y%m%d-%H%M.dd.gz.gpg)"
   ) 2>&1 |INFO
   INFO "dd ended"
 
