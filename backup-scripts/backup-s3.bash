@@ -7,14 +7,26 @@
 # Requires: configured awscli, gpg, lvmtools etc
 #
 
-# Configuration should be stored in backup-settings.bash
-
 # set pipefail so that if any command in pipe fails we get info
 # https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
 set -uo pipefail
+
+# Read settings
+# shellchekc source=backup-settings.bash
+"$(dirname "$(realpath "${BASH_SOURCE[0]}")")/backup-settings.bash"
+
+# Check that VOLNAME was passed as parameter
+if [ $# -eq 0 ]; then
+  # Not done through logger as the logger has not been initialized yet
+  echo "VOLNAME parameter needs to be set in $1. Exiting." >&2
+  exit 100
+fi
+VOLNAME=${1}
+
 # Set up logger facility
-source ../bash-logger/logger.bash
-export LOGGER_LOGFILE="backup-s3.log"
+# shellcheck source=../bash-logger/logger.bash
+source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../bash-logger/logger.bash"
+export LOGGER_LOGFILE="${LOGDIR}/s3-${VOLNAME}.log"
 export LOGGER_STDOUT_LEVEL=${LOG_LEVEL_WARN}
 export LOGGER_STDERR_LEVEL=${LOG_LEVEL_ERROR}
 
@@ -30,15 +42,12 @@ function exit_handler {
 
 # If there is error catch it and exit the script
 function error_handler {
-  ERROR "Uncaught error! The script is terminated"
+  FATAL "Uncaught error! The script is terminated"
   exit 2
 }
 
 trap error_handler ERR
 trap exit_handler EXIT
-
-# Read settings
-source backup-settings.bash
 
 # Cursory syntax check. We expect 0 or 6 arguments.
 # 0 arguments : you are colling this from another shellscript and export the needed variables
@@ -74,8 +83,6 @@ function set_optional_defaults {
 
   # awscli path (do not use quotes if using tilde)
   if [ -z "${AWSCLI+x}" ]; then AWSCLI=~/bin/aws; fi
-
-  if [ -z "${LOGFILE+x}" ]; then LOGFILE="backup-logs/backup-s3-${VOLNAME}-$(date --iso-8601=date).log"; fi
 }
 
 # Clean up old snapshots, if needed
@@ -84,11 +91,12 @@ function snapshot_cleanup {
   if [ "$SNAPSHOT_RETENTION_COUNT" -eq 0 ]
   then
     WARN "SNAPSHOT_RETENTION_COUNT set to 0, not rotating snapshots"
-    return
+    return 0
   fi
 
   if [[ ! $($AWSCLI s3 ls "s3://${S3_BUCKET}/${S3_REMOTEDIR}/") ]]; then
     INFO "the directory does not exist in s3 bucket. Skipping snapshot cleanup"
+    return 0
   fi
 
   SNAPSHOT_LIST=$($AWSCLI s3 ls "s3://${S3_BUCKET}/${S3_REMOTEDIR}/"|\
@@ -99,17 +107,17 @@ function snapshot_cleanup {
   while [ "$SNAPSHOT_COUNT" -gt "$SNAPSHOT_RETENTION_COUNT" ]
   do
     INFO "Snapshot count = $SNAPSHOT_COUNT"
-    REMOVEFILE=$(log "${SNAPSHOT_LIST}"|head -n1)
-    INFO "File to remove = s3://${S3_BUCKET}/${REMOTEDIR}/${REMOVEFILE}"
+    REMOVEFILE="$(echo "${SNAPSHOT_LIST}"|head -n1)"
+    INFO "File to remove = s3://${S3_BUCKET}/${S3_REMOTEDIR}/${REMOVEFILE}"
 
-    if ! $AWSCLI s3 rm "s3://${S3_BUCKET}/${S3_REMOTEDIR}/${REMOVEFILE}"; then
+    if ! $AWSCLI s3 rm "s3://${S3_BUCKET}/${S3_REMOTEDIR}/${REMOVEFILE}" >/dev/null 2>&1; then
       ERROR "Could not perform snapshot cleanup. Check your permissions."
       return 1
     fi
 
     SNAPSHOT_LIST=$($AWSCLI s3 ls "s3://${S3_BUCKET}/${S3_REMOTEDIR}/"|\
       grep "${SNAPSHOT_ROTATION_SUFFIX}"|cut -f4 -d' '|sort -u)
-    SNAPSHOT_COUNT=$(log "${SNAPSHOT_LIST}"|wc -l)
+    SNAPSHOT_COUNT="$(echo "${SNAPSHOT_LIST}"|wc -l)"
   done
 }
 
@@ -144,17 +152,11 @@ function push_snapshot {
 
   # Drop the snapshot
   INFO "Remove LVM snapshot"
-  /usr/sbin/lvremove -f "/dev/${VOLGROUP}/${SNAPNAME}"2>&1 |\
+  /usr/sbin/lvremove -f "/dev/${VOLGROUP}/${SNAPNAME}" 2>&1 |\
     while read -r a; do INFO "lvremove: $a"; done
 }
 
 # "main"
-# Check that VOLNAME was passed as parameter
-if [ $# -eq 0 ]; then
-  FATAL "VOLNAME parameter needs to be set in $1. Exiting."
-  exit 100
-fi
-VOLNAME=${1}
 set_optional_defaults "$@"
 syntax_check "$@"
 awscli_check
