@@ -12,8 +12,8 @@
 set -uo pipefail
 
 # Read settings
-# shellchekc source=backup-settings.bash
-"$(dirname "$(realpath "${BASH_SOURCE[0]}")")/backup-settings.bash"
+# shellcheck source=backup-settings.bash
+source "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/backup-settings.bash"
 
 # Check that VOLNAME was passed as parameter
 if [ $# -eq 0 ]; then
