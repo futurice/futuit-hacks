@@ -9,7 +9,9 @@
 
 # set pipefail so that if any command in pipe fails we get info
 # https://vaneyckt.io/posts/safer_bash_scripts_with_set_euxo_pipefail/
-set -uo pipefail
+set -u # Fail if undeclared variable is used
+set -o pipefail # pipe return status will be non-zero if one of the piped commands failed
+set -o posix # Posix compliance mode. Affects for example subshel return status
 
 # Read settings
 # shellcheck source=backup-settings.bash
@@ -30,14 +32,14 @@ export LOGGER_LOGFILE="${LOGDIR}/s3-${VOLNAME}.log"
 export LOGGER_STDOUT_LEVEL=${LOG_LEVEL_WARN}
 export LOGGER_STDERR_LEVEL=${LOG_LEVEL_ERROR}
 
-
 # Check the exit status of script
 function exit_handler {
   exit_status=$?
-  INFO "Script execution ended. Status: $exit_status"
+  INFO "Exit handler: Script execution ended. Status: $exit_status"
   if [[ $exit_status -ne 0 ]]; then
-    FATAL "Script exit status was not 0!"
+    FATAL "Script exit status was not 0! See log file at ${LOGGER_LOGFILE}"
   fi
+  exec 3>&- # release the extra file descriptor
 }
 
 # If there is error catch it and exit the script
@@ -46,8 +48,11 @@ function error_handler {
   exit 2
 }
 
-trap error_handler ERR
+trap error_handler ERR INT 
 trap exit_handler EXIT
+
+# LVM does not like extra file descriptors. Don't log warnings about that
+export LVM_SUPPRESS_FD_WARNINGS="y"
 
 # Cursory syntax check. We expect 0 or 6 arguments.
 # 0 arguments : you are colling this from another shellscript and export the needed variables
@@ -134,31 +139,51 @@ function awscli_check {
 function push_snapshot {
   # Create a snapshot
   INFO "Take LVM snapshot"
-  /usr/sbin/lvcreate -L"${SNAPSIZE}" -s -n "${SNAPNAME}" "/dev/${VOLGROUP}/${VOLNAME}" 2>&1 |\
-    while read -r a; do INFO "lvcreate: $a"; done
+  if ! message="$(/usr/sbin/lvcreate -L"${SNAPSIZE}" -s -n "${SNAPNAME}" "/dev/${VOLGROUP}/${VOLNAME}" 2>&1)"
+  then
+    FATAL "LVM snapshot failed!"
+    return 1
+  fi
+  INFO "LVM snapshot creted"
+  INFO "lvcreate messages: ${message}"
 
   # DD the image through gzip and awscli
   # With GPG, gzip forked as --fast in other process.
   # Run the pipeline in subshell so that we can pipe all output to logger
   INFO "dd started"
-  # Run the pipeline in subshell so we can capture the output
-  (
-    /bin/dd if="/dev/${VOLGROUP}/${SNAPNAME}" bs=16M status=none|\
-      /bin/nice -n 19 /bin/pigz -9 -|\
-      /bin/nice -n 19 /usr/bin/gpg -z 0 -c --batch --no-tty --passphrase-file "${PASSFILE}" |\
-      ${AWSCLI} s3 cp - "s3://${S3_BUCKET}/${S3_REMOTEDIR}/${SNAPNAME}-$(date +%Y%m%d-%H%M.dd.gz.gpg)"
-  ) 2>&1 | while read -r a; do INFO "dd pipeline: $a"; done
+  # Redirect the stderr of each command to file descriptor 3 and capture that as well
+  exec 3>&1 #set up extra file descriptor so we can log stderr from pipeline
+  if ! message="$( {
+    /bin/dd if="/dev/${VOLGROUP}/${SNAPNAME}" bs=16M status=none 2>&3|\
+    /bin/nice -n 19 /bin/pigz -9 - 2>&3|\
+    /bin/nice -n 19 /usr/bin/gpg -z 0 -c --batch --no-tty --passphrase-file "${PASSFILE}" 2>&3|\
+    ${AWSCLI} s3 cp - "s3://${S3_BUCKET}/${S3_REMOTEDIR}/${SNAPNAME}-$(date +%Y%m%d-%H%M.dd.gz.gpg)" 2>&3
+  } 3>&1)"
+  then
+    FATAL "DD pipeline exit status was not 0!"
+    INFO "dd pipeline messages: ${message}"
+    return 1
+  fi
   INFO "dd ended"
+  INFO "dd pipeline messages: ${message}"
 
   # Drop the snapshot
   INFO "Remove LVM snapshot"
-  /usr/sbin/lvremove -f "/dev/${VOLGROUP}/${SNAPNAME}" 2>&1 |\
-    while read -r a; do INFO "lvremove: $a"; done
+  if ! message="$(/usr/sbin/lvremove -f "/dev/${VOLGROUP}/${SNAPNAME}" 2>&1)"
+  then
+    FATAL "Removing LVM snapshot failed!"
+    INFO "lvremove messages: ${message}"
+    return 1
+  fi
+  INFO "LVM snapshot removed"
+  INFO "lvremove messages: ${message}"
 }
 
 # "main"
+INFO "S3 backup for ${VOLNAME} started"
 set_optional_defaults "$@"
 syntax_check "$@"
 awscli_check
 snapshot_cleanup "$@"
 push_snapshot "$@"
+INFO "S3 backup for ${VOLNAME} ended"
