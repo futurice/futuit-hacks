@@ -50,7 +50,8 @@ function LOGGER_get_log_level_info() {
   local log_level=${1}
 
   local i=0
-  for ((i=0; i<${#LOGGER_log_levels[@]}; i+=$((LOGGER_levels_name+1)))); do
+  for ((i=0; i<${#LOGGER_log_levels[@]}; i+=$((LOGGER_levels_name+1)) ))
+  do
     if [[ "$log_level" == "${LOGGER_log_levels[i]}" ]]; then
       LOGGER_level_name="${LOGGER_log_levels[i+${LOGGER_levels_name}]}"
       return 0
@@ -67,6 +68,8 @@ function LOGGER_write_log_message {
 
   log_level="${1}"
   LOGGER_get_log_level_info "${1}"
+
+  mkdir -p "$(dirname "${LOGGER_LOGFILE}")"
 
   shift
   local message=${*:-}
