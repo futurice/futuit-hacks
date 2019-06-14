@@ -1,7 +1,7 @@
 /*
 PLEASE NOTE: Do not make ANY changes to this file directly in Confluence.
 Instead make all changes to the original stylesheet found in
-https://github.com/futurice/futuit-hacks/confluence and then copy-paste those
+https://github.com/futurice/futuit-hacks/tree/master/confluence and then copy-paste those
 results to Confluence. All non-committed changes WILL be accidentally
 overwritten later. Also please comment your changes so that you and your
 colleague will be able to understand those also tomorrow and/or next year. Thank
@@ -35,6 +35,7 @@ you!
 }
 
 /*-----------------------FUTURICE FONTS (FLOCKLR)-----------------------*/
+/* flockler does not host these anymore, comment out temporarily
 @font-face {  
     font-family: 'Futurice';  
     src: url(//static.flockler.com/assets/futurice2/fonts/FuturiceRegular-142a9c35cac7ad59446b4a3f60f45f3e5a57687b8c55bfb8f947d4d2bcbca4d9.woff) 
@@ -58,7 +59,7 @@ you!
     font-weight: normal;  
     font-style: normal;  
 }
-
+*/
 /*--------------------------- BODY --------------------------------*/
 body {  
     -webkit-font-smoothing: antialiased;  
